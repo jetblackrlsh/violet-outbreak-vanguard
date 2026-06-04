@@ -10,7 +10,7 @@ Open `index.html` directly or serve the repository root with any static web serv
 - Dodge: A/D, arrow keys, or the touch Left/Right buttons
 - Fire rocket fist: left click, Space, or the touch Fire button
 - Green holo shield: right mouse, Q, or the touch Shield button
-- Heal: E or the Heal button, spending score for health
+- Heal: E or the Heal button, spending 900 score for health
 - Pause: `P` or the pause button
 
 ## GitHub Pages

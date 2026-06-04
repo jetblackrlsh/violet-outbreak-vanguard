@@ -71,29 +71,44 @@ function loadTexture(path) {
 const [
   conceptTexture,
   portalTexture,
-  enemyTexture,
   bossTexture,
   groundTexture,
   buildingTexture,
   skylineTexture,
+  enemyBruteTexture,
+  enemyImpTexture,
+  enemyRobotTexture,
+  enemyCrawlerTexture,
+  playerRocketTexture,
+  enemyBoltTexture,
 ] = await Promise.all([
   loadTexture("assets/concept-backdrop.png"),
   loadTexture("assets/portal.png"),
-  loadTexture("assets/enemy-atlas.png"),
   loadTexture("assets/boss-atlas.png"),
   loadTexture("assets/ground-texture.png"),
   loadTexture("assets/building-texture.png"),
   loadTexture("assets/skyline-backdrop.png"),
+  loadTexture("assets/enemy-brute.png"),
+  loadTexture("assets/enemy-imp.png"),
+  loadTexture("assets/enemy-robot.png"),
+  loadTexture("assets/enemy-crawler.png"),
+  loadTexture("assets/player-rocket-fist.png"),
+  loadTexture("assets/enemy-plasma-bolt.png"),
 ]);
 
 const assets = {
   concept: conceptTexture,
   portal: portalTexture,
-  enemies: enemyTexture,
   bosses: bossTexture,
   ground: groundTexture,
   building: buildingTexture,
   skyline: skylineTexture,
+  enemyBrute: enemyBruteTexture,
+  enemyImp: enemyImpTexture,
+  enemyRobot: enemyRobotTexture,
+  enemyCrawler: enemyCrawlerTexture,
+  playerRocket: playerRocketTexture,
+  enemyBolt: enemyBoltTexture,
 };
 
 for (const texture of Object.values(assets)) {
@@ -108,10 +123,50 @@ assets.building.wrapT = THREE.RepeatWrapping;
 
 const MAX_WAVE = 6;
 const enemyProfiles = [
-  { name: "Demon Brute", uv: [0, 0.5, 0.5, 0.5], hp: 26, speed: 4.5, score: 120, scale: [5.2, 5.2] },
-  { name: "Winged Imp", uv: [0.5, 0.5, 0.5, 0.5], hp: 18, speed: 5.8, score: 105, scale: [4.4, 4.4] },
-  { name: "Siege Robot", uv: [0, 0, 0.5, 0.5], hp: 34, speed: 3.9, score: 145, scale: [4.7, 4.9] },
-  { name: "Portal Crawler", uv: [0.5, 0, 0.5, 0.5], hp: 24, speed: 5.1, score: 120, scale: [5.1, 4.6] },
+  {
+    name: "Demon Brute",
+    texture: "enemyBrute",
+    hp: 34,
+    speed: 3.35,
+    score: 135,
+    scale: [6.8, 6.8],
+    grounded: true,
+    movement: "stomp",
+    attack: "heavy",
+  },
+  {
+    name: "Winged Imp",
+    texture: "enemyImp",
+    hp: 24,
+    speed: 4.9,
+    score: 120,
+    scale: [6.0, 6.0],
+    grounded: false,
+    movement: "swoop",
+    attack: "twin",
+  },
+  {
+    name: "Siege Robot",
+    texture: "enemyRobot",
+    hp: 46,
+    speed: 2.95,
+    score: 165,
+    scale: [6.3, 6.6],
+    grounded: true,
+    movement: "march",
+    attack: "burst",
+  },
+  {
+    name: "Portal Crawler",
+    texture: "enemyCrawler",
+    hp: 30,
+    speed: 4.2,
+    score: 135,
+    scale: [6.8, 6.1],
+    grounded: true,
+    movement: "skitter",
+    attack: "quick",
+  },
 ];
 
 const bossProfiles = [
@@ -124,12 +179,12 @@ const bossProfiles = [
 ];
 
 const waveTracks = [
-  { root: 55, scale: [0, 3, 7, 10], tempo: 116, bass: "sawtooth", lead: "triangle", color: 0x74ff3c },
-  { root: 61.74, scale: [0, 2, 5, 9], tempo: 124, bass: "square", lead: "sawtooth", color: 0x8fff55 },
-  { root: 65.41, scale: [0, 3, 6, 10], tempo: 132, bass: "sawtooth", lead: "square", color: 0x49ffc6 },
-  { root: 73.42, scale: [0, 1, 7, 11], tempo: 140, bass: "square", lead: "triangle", color: 0xb0ff38 },
-  { root: 82.41, scale: [0, 4, 6, 10], tempo: 148, bass: "sawtooth", lead: "sawtooth", color: 0x38ffd2 },
-  { root: 92.5, scale: [0, 1, 5, 8], tempo: 158, bass: "square", lead: "sawtooth", color: 0xc7ff3e },
+  { root: 55, scale: [0, 3, 7, 10], tempo: 112, bass: "sawtooth", lead: "triangle", leadSteps: [0, 6, 10, 14], kickSteps: [0, 8], noiseSteps: [4, 12] },
+  { root: 61.74, scale: [0, 2, 5, 9], tempo: 124, bass: "square", lead: "sawtooth", leadSteps: [0, 3, 7, 11, 14], kickSteps: [0, 6, 10], noiseSteps: [2, 8, 14] },
+  { root: 65.41, scale: [0, 3, 6, 10], tempo: 132, bass: "sawtooth", lead: "square", leadSteps: [1, 4, 6, 9, 13, 15], kickSteps: [0, 5, 8, 13], noiseSteps: [3, 7, 11, 15] },
+  { root: 73.42, scale: [0, 1, 7, 11], tempo: 140, bass: "square", lead: "triangle", leadSteps: [0, 2, 5, 8, 12, 15], kickSteps: [0, 4, 8, 12], noiseSteps: [2, 6, 10, 14] },
+  { root: 82.41, scale: [0, 4, 6, 10], tempo: 150, bass: "sawtooth", lead: "sawtooth", leadSteps: [0, 1, 5, 7, 10, 13, 15], kickSteps: [0, 3, 6, 9, 12], noiseSteps: [1, 4, 7, 10, 13] },
+  { root: 92.5, scale: [0, 1, 5, 8], tempo: 162, bass: "square", lead: "sawtooth", leadSteps: [0, 2, 3, 6, 8, 11, 13, 15], kickSteps: [0, 2, 6, 8, 10, 14], noiseSteps: [1, 3, 5, 7, 9, 11, 13, 15] },
 ];
 
 const game = {
@@ -144,7 +199,7 @@ const game = {
   shieldHeld: false,
   fireCooldown: 0,
   healCooldown: 0,
-  healCost: 350,
+  healCost: 900,
   playerX: 0,
   targetPlayerX: 0,
   dodgeCooldown: 0,
@@ -196,6 +251,26 @@ function createMaskedMaterial(texture, uv, glowColor = 0xffffff, intensity = 0.2
     transparent: true,
     depthWrite: false,
   });
+}
+
+function createHealthBar(width) {
+  const group = new THREE.Group();
+  const back = new THREE.Mesh(
+    new THREE.PlaneGeometry(width, 0.16),
+    new THREE.MeshBasicMaterial({ color: 0x160a20, transparent: true, opacity: 0.9, depthWrite: false, depthTest: false }),
+  );
+  const fill = new THREE.Mesh(
+    new THREE.PlaneGeometry(width, 0.12),
+    new THREE.MeshBasicMaterial({ color: 0x74ff3c, transparent: true, opacity: 1, depthWrite: false, depthTest: false }),
+  );
+  fill.position.z = 0.012;
+  group.add(back, fill);
+  group.renderOrder = 20;
+  back.renderOrder = 20;
+  fill.renderOrder = 21;
+  group.userData.fill = fill;
+  group.userData.width = width;
+  return group;
 }
 
 function makeArena() {
@@ -291,23 +366,38 @@ function makeArena() {
 function spawnEnemy(isBoss = false) {
   const difficulty = waveDifficulty(game.wave);
   const profile = isBoss ? bossProfiles[game.wave - 1] : enemyProfiles[(runtime.enemies.length + game.wave) % enemyProfiles.length];
-  const hp = Math.round(profile.hp * (isBoss ? 1 + (game.wave - 1) * 0.18 : difficulty));
-  const material = createMaskedMaterial(isBoss ? assets.bosses : assets.enemies, profile.uv, isBoss ? 0xb535ff : 0x74ff3c, isBoss ? 0.28 : 0.18);
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(profile.scale[0] * (isBoss ? 1.25 : 1), profile.scale[1] * (isBoss ? 1.25 : 1)), material);
+  const hp = Math.round(profile.hp * (isBoss ? 1 + (game.wave - 1) * 0.22 : difficulty));
+  const scale = [profile.scale[0] * (isBoss ? 1.25 : 1), profile.scale[1] * (isBoss ? 1.25 : 1)];
+  const material = createMaskedMaterial(
+    isBoss ? assets.bosses : assets[profile.texture],
+    profile.uv || [0, 0, 1, 1],
+    isBoss ? 0xb535ff : 0x74ff3c,
+    isBoss ? 0.28 : 0.18,
+  );
+  const mesh = new THREE.Group();
+  const sprite = new THREE.Mesh(new THREE.PlaneGeometry(scale[0], scale[1]), material);
+  const healthBar = createHealthBar(scale[0] * 0.68);
+  healthBar.position.set(0, scale[1] * 0.55, 0.05);
+  mesh.add(sprite, healthBar);
   const lane = isBoss ? 0 : (Math.random() - 0.5) * 24;
-  mesh.position.set(lane, isBoss ? 8.4 : 4.3 + Math.random() * 2, -54 + Math.random() * 5);
+  const baseY = isBoss ? 8.4 : profile.grounded ? scale[1] / 2 : 5.0 + Math.random() * 1.2;
+  mesh.position.set(lane, baseY, -54 + Math.random() * 5);
   scene.add(mesh);
 
   runtime.enemies.push({
     mesh,
+    sprite,
+    healthBar,
     profile,
     hp,
     maxHp: hp,
     boss: isBoss,
-    speed: (profile.speed || 4.4) * (0.92 + (game.wave - 1) * 0.11) * (isBoss ? 0.45 : 1),
+    baseY,
+    scale,
+    speed: (profile.speed || 4.4) * (0.9 + (game.wave - 1) * 0.09) * (isBoss ? 0.45 : 1),
     attackTimer: isBoss ? 1.65 : 2.2 + Math.random() * 1.35,
     strafe: Math.random() * Math.PI * 2,
-    radius: isBoss ? 4.7 : 2.4,
+    radius: isBoss ? 5.6 : Math.max(scale[0], scale[1]) * 0.42,
   });
 }
 
@@ -315,17 +405,9 @@ function spawnPlayerProjectile() {
   if (game.status !== "playing" || game.paused || game.fireCooldown > 0) return;
   const target = findAutoTarget();
   const direction = target ? directionToTarget(camera.position, target) : getAimDirection();
-  const mesh = new THREE.Group();
-  const core = new THREE.Mesh(
-    new THREE.SphereGeometry(0.32, 18, 18),
-    new THREE.MeshBasicMaterial({ color: 0x8dff45 }),
-  );
-  const ring = new THREE.Mesh(
-    new THREE.TorusGeometry(0.42, 0.055, 8, 24),
-    new THREE.MeshBasicMaterial({ color: 0x19ffbb, transparent: true, opacity: 0.8 }),
-  );
-  ring.rotation.x = Math.PI / 2;
-  mesh.add(core, ring);
+  const material = createMaskedMaterial(assets.playerRocket, [0, 0, 1, 1], 0x74ff3c, 0.35);
+  material.blending = THREE.AdditiveBlending;
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2.8, 2.8), material);
   mesh.position.copy(camera.position).add(new THREE.Vector3(0.45, -0.25, -1.2));
   scene.add(mesh);
   runtime.projectiles.push({ mesh, velocity: direction.multiplyScalar(68), life: 1.45, damage: 28 + game.wave * 3, target });
@@ -358,20 +440,21 @@ function directionToTarget(origin, enemy) {
     .normalize();
 }
 
-function spawnEnemyBolt(enemy) {
-  const mesh = new THREE.Mesh(
-    new THREE.SphereGeometry(enemy.boss ? 0.46 : 0.32, 18, 18),
-    new THREE.MeshBasicMaterial({ color: enemy.boss ? 0xff39d6 : 0xb535ff }),
-  );
-  mesh.position.copy(enemy.mesh.position).add(new THREE.Vector3(0, 0.35, 0.8));
+function spawnEnemyBolt(enemy, options = {}) {
+  const material = createMaskedMaterial(assets.enemyBolt, [0, 0, 1, 1], 0xb535ff, 0.3);
+  material.blending = THREE.AdditiveBlending;
+  const size = (enemy.boss ? 1.45 : 1.08) * (options.sizeScale || 1);
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(size, size), material);
+  mesh.position.copy(enemy.mesh.position).add(new THREE.Vector3(options.offsetX || 0, options.offsetY || 0.35, 0.8));
   scene.add(mesh);
-  const target = camera.position.clone().add(new THREE.Vector3(0, -0.2, 0));
-  const velocity = target.sub(mesh.position).normalize().multiplyScalar(enemy.boss ? 15 + game.wave : 12 + game.wave * 0.7);
+  const target = camera.position.clone().add(new THREE.Vector3(options.aimOffsetX || 0, -0.2, 0));
+  const speed = (enemy.boss ? 15 + game.wave : 12 + game.wave * 0.7) * (options.speedScale || 1);
+  const velocity = target.sub(mesh.position).normalize().multiplyScalar(speed);
   runtime.enemyBolts.push({
     mesh,
     velocity,
     life: 3.1,
-    damage: enemy.boss ? 8 + game.wave * 1.5 : 5 + Math.round(game.wave * 0.7),
+    damage: (enemy.boss ? 8 + game.wave * 1.5 : 5 + Math.round(game.wave * 0.7)) * (options.damageScale || 1),
   });
 }
 
@@ -444,8 +527,12 @@ function disposeSceneObject(object) {
   object.traverse?.((child) => {
     child.geometry?.dispose?.();
     if (Array.isArray(child.material)) {
-      child.material.forEach((material) => material.dispose?.());
+      child.material.forEach((material) => {
+        material.uniforms?.map?.value?.dispose?.();
+        material.dispose?.();
+      });
     } else {
+      child.material?.uniforms?.map?.value?.dispose?.();
       child.material?.dispose?.();
     }
   });
@@ -456,7 +543,7 @@ function waveTargetKills(wave) {
 }
 
 function waveDifficulty(wave) {
-  return 0.88 + (wave - 1) * 0.16;
+  return 1 + (wave - 1) * 0.24;
 }
 
 function spawnIntervalForWave(wave) {
@@ -555,23 +642,81 @@ function updateSpawning(dt) {
   }
 }
 
+function updateEnemyMotion(enemy, dt) {
+  const { mesh, profile } = enemy;
+  enemy.strafe += dt * (enemy.boss ? 0.7 : 1.2);
+  let lateralSpeed = enemy.boss ? Math.sin(enemy.strafe) * 1.2 : 0;
+  let forwardScale = 1;
+  let y = enemy.baseY;
+
+  if (profile.movement === "stomp") {
+    lateralSpeed = Math.sin(enemy.strafe * 0.75) * 0.8;
+    y = enemy.baseY + Math.abs(Math.sin(game.time * 4 + enemy.strafe)) * 0.16;
+    forwardScale = 0.92;
+  } else if (profile.movement === "swoop") {
+    lateralSpeed = Math.sin(enemy.strafe * 1.65) * 4.2;
+    y = enemy.baseY + Math.sin(game.time * 2.7 + enemy.strafe) * 1.1;
+    forwardScale = 1.06;
+  } else if (profile.movement === "march") {
+    lateralSpeed = Math.sin(enemy.strafe * 0.7) * 0.55;
+    forwardScale = Math.sin(game.time * 1.6 + enemy.strafe) > 0.78 ? 0.38 : 0.96;
+    y = enemy.baseY + Math.abs(Math.sin(game.time * 3.2 + enemy.strafe)) * 0.08;
+  } else if (profile.movement === "skitter") {
+    lateralSpeed = Math.sin(enemy.strafe * 3.3) * 4.8;
+    y = enemy.baseY + Math.abs(Math.sin(game.time * 9 + enemy.strafe)) * 0.08;
+    forwardScale = 1.12;
+  }
+
+  mesh.position.z += enemy.speed * forwardScale * dt;
+  mesh.position.x += lateralSpeed * dt;
+  mesh.position.y = y;
+  mesh.position.x = THREE.MathUtils.clamp(mesh.position.x, -25, 25);
+  mesh.lookAt(camera.position.x, mesh.position.y, camera.position.z);
+  mesh.scale.setScalar(1 + Math.sin(game.time * 7 + enemy.strafe) * 0.025);
+}
+
+function fireEnemyAttack(enemy) {
+  const attack = enemy.profile.attack;
+  if (enemy.boss) {
+    spawnEnemyBolt(enemy, { offsetX: -0.8, aimOffsetX: -1.2, sizeScale: 1.25, damageScale: 0.9 });
+    spawnEnemyBolt(enemy, { offsetX: 0.8, aimOffsetX: 1.2, sizeScale: 1.25, damageScale: 0.9 });
+  } else if (attack === "twin") {
+    spawnEnemyBolt(enemy, { offsetX: -0.52, aimOffsetX: -0.85, speedScale: 1.18, damageScale: 0.72 });
+    spawnEnemyBolt(enemy, { offsetX: 0.52, aimOffsetX: 0.85, speedScale: 1.18, damageScale: 0.72 });
+  } else if (attack === "burst") {
+    spawnEnemyBolt(enemy, { aimOffsetX: -2.2, speedScale: 0.95, damageScale: 0.68 });
+    spawnEnemyBolt(enemy, { aimOffsetX: 0, speedScale: 0.98, damageScale: 0.68 });
+    spawnEnemyBolt(enemy, { aimOffsetX: 2.2, speedScale: 0.95, damageScale: 0.68 });
+  } else if (attack === "heavy") {
+    spawnEnemyBolt(enemy, { speedScale: 0.82, damageScale: 1.55, sizeScale: 1.35 });
+  } else {
+    spawnEnemyBolt(enemy, { speedScale: 1.38, damageScale: 0.72, sizeScale: 0.85 });
+  }
+}
+
+function nextAttackDelay(enemy) {
+  const ramp = 1 + (game.wave - 1) * 0.11;
+  const attack = enemy.profile.attack;
+  const base = enemy.boss ? 1.3 : attack === "heavy" ? 2.7 : attack === "burst" ? 3.0 : attack === "twin" ? 1.9 : 1.45;
+  return base / ramp;
+}
+
 function updateEnemies(dt) {
   for (let i = runtime.enemies.length - 1; i >= 0; i -= 1) {
     const enemy = runtime.enemies[i];
     const { mesh } = enemy;
-    enemy.strafe += dt * (enemy.boss ? 0.7 : 1.2);
-    mesh.position.z += enemy.speed * dt;
-    mesh.position.x += Math.sin(enemy.strafe) * dt * (enemy.boss ? 1.6 : 2.6);
-    mesh.position.x = THREE.MathUtils.clamp(mesh.position.x, -25, 25);
-    mesh.lookAt(camera.position.x, mesh.position.y, camera.position.z);
-    mesh.scale.setScalar(1 + Math.sin(game.time * 7 + i) * 0.025);
+    updateEnemyMotion(enemy, dt);
 
     enemy.attackTimer -= dt * (0.9 + (game.wave - 1) * 0.08);
     if (enemy.attackTimer <= 0) {
-      spawnEnemyBolt(enemy);
-      enemy.attackTimer = (enemy.boss ? 1.18 : 2.05) / (1 + (game.wave - 1) * 0.11);
+      fireEnemyAttack(enemy);
+      enemy.attackTimer = nextAttackDelay(enemy);
       audio.hit("enemy");
     }
+
+    const healthScale = Math.max(0.02, enemy.hp / enemy.maxHp);
+    enemy.healthBar.userData.fill.scale.x = healthScale;
+    enemy.healthBar.userData.fill.position.x = -(enemy.healthBar.userData.width * (1 - healthScale)) / 2;
 
     if (mesh.position.z > 4.5) {
       takeDamage(enemy.boss ? 18 + game.wave : 8 + Math.round(game.wave * 0.75));
@@ -593,6 +738,7 @@ function updateProjectiles(dt) {
       projectile.target = findAutoTarget();
     }
     projectile.mesh.position.addScaledVector(projectile.velocity, dt);
+    projectile.mesh.lookAt(camera.position);
     projectile.mesh.rotation.z += dt * 14;
 
     let hitIndex = -1;
@@ -624,6 +770,7 @@ function updateEnemyBolts(dt, shieldActive) {
     const bolt = runtime.enemyBolts[i];
     bolt.life -= dt;
     bolt.mesh.position.addScaledVector(bolt.velocity, dt);
+    bolt.mesh.lookAt(camera.position);
     const dist = bolt.mesh.position.distanceTo(camera.position);
     if (dist < 3.3) {
       if (shieldActive) {
@@ -847,15 +994,20 @@ const audio = {
   playStep(track, step) {
     const now = this.ctx.currentTime;
     const root = track.root;
-    if (step % 2 === 0) this.note(root / 2, 0.11, track.bass, 0.13, now, this.music);
-    if ([0, 3, 7, 10, 12, 15].includes(step)) {
+    if (track.kickSteps.includes(step)) this.note(root / 2, 0.13, track.bass, 0.2, now, this.music);
+    if (step % 4 === 2) this.note(root / 4, 0.08, "triangle", 0.08, now, this.music);
+    if (track.leadSteps.includes(step)) {
       const degree = track.scale[(step + this.currentWave) % track.scale.length];
-      this.note(root * 2 ** (degree / 12), 0.08, track.lead, 0.055, now, this.music);
+      this.note(root * 2 ** (degree / 12), 0.1, track.lead, 0.105, now, this.music);
     }
-    if (step % 4 === 0) this.noise(0.045, 0.11, now, this.music);
+    if (track.noiseSteps.includes(step)) this.noise(0.05, 0.16, now, this.music);
+    if (step % 8 === this.currentWave % 4) {
+      const accent = track.scale[(step + 1) % track.scale.length] + 12;
+      this.note(root * 2 ** (accent / 12), 0.055, "sine", 0.07, now, this.music);
+    }
     if (this.isBoss && step % 2 === 1) {
-      this.note(root * 2 ** (track.scale[(step + 2) % track.scale.length] / 12) * 1.5, 0.12, "sawtooth", 0.09, now, this.bossGain);
-      this.noise(0.035, 0.16, now, this.bossGain);
+      this.note(root * 2 ** (track.scale[(step + 2) % track.scale.length] / 12) * 1.5, 0.14, "sawtooth", 0.15, now, this.bossGain);
+      this.noise(0.04, 0.22, now, this.bossGain);
     }
   },
 
