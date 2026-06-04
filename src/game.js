@@ -71,7 +71,6 @@ function loadTexture(path) {
 const [
   conceptTexture,
   portalTexture,
-  bossTexture,
   groundTexture,
   buildingTexture,
   skylineTexture,
@@ -79,12 +78,17 @@ const [
   enemyImpTexture,
   enemyRobotTexture,
   enemyCrawlerTexture,
+  bossPortalWarlordTexture,
+  bossVoidQueenTexture,
+  bossSiegeTitanTexture,
+  bossCyberNecromancerTexture,
+  bossAbyssBeastTexture,
+  bossVioletOverlordTexture,
   playerRocketTexture,
   enemyBoltTexture,
 ] = await Promise.all([
   loadTexture("assets/concept-backdrop.png"),
   loadTexture("assets/portal.png"),
-  loadTexture("assets/boss-atlas.png"),
   loadTexture("assets/ground-texture.png"),
   loadTexture("assets/building-texture.png"),
   loadTexture("assets/skyline-backdrop.png"),
@@ -92,6 +96,12 @@ const [
   loadTexture("assets/enemy-imp.png"),
   loadTexture("assets/enemy-robot.png"),
   loadTexture("assets/enemy-crawler.png"),
+  loadTexture("assets/boss-portal-warlord.png"),
+  loadTexture("assets/boss-void-queen.png"),
+  loadTexture("assets/boss-siege-titan.png"),
+  loadTexture("assets/boss-cyber-necromancer.png"),
+  loadTexture("assets/boss-abyss-beast.png"),
+  loadTexture("assets/boss-violet-overlord.png"),
   loadTexture("assets/player-rocket-fist.png"),
   loadTexture("assets/enemy-plasma-bolt.png"),
 ]);
@@ -99,7 +109,6 @@ const [
 const assets = {
   concept: conceptTexture,
   portal: portalTexture,
-  bosses: bossTexture,
   ground: groundTexture,
   building: buildingTexture,
   skyline: skylineTexture,
@@ -107,6 +116,12 @@ const assets = {
   enemyImp: enemyImpTexture,
   enemyRobot: enemyRobotTexture,
   enemyCrawler: enemyCrawlerTexture,
+  bossPortalWarlord: bossPortalWarlordTexture,
+  bossVoidQueen: bossVoidQueenTexture,
+  bossSiegeTitan: bossSiegeTitanTexture,
+  bossCyberNecromancer: bossCyberNecromancerTexture,
+  bossAbyssBeast: bossAbyssBeastTexture,
+  bossVioletOverlord: bossVioletOverlordTexture,
   playerRocket: playerRocketTexture,
   enemyBolt: enemyBoltTexture,
 };
@@ -170,21 +185,81 @@ const enemyProfiles = [
 ];
 
 const bossProfiles = [
-  { name: "Portal Warlord", uv: [0, 0.5, 1 / 3, 0.5], hp: 160, scale: [8, 8.2] },
-  { name: "Void Queen", uv: [1 / 3, 0.5, 1 / 3, 0.5], hp: 205, scale: [8.4, 8.6] },
-  { name: "Siege Titan", uv: [2 / 3, 0.5, 1 / 3, 0.5], hp: 255, scale: [8.2, 8.6] },
-  { name: "Cyber Necromancer", uv: [0, 0, 1 / 3, 0.5], hp: 310, scale: [8.2, 8.8] },
-  { name: "Abyss Beast", uv: [1 / 3, 0, 1 / 3, 0.5], hp: 375, scale: [9, 8] },
-  { name: "Violet Overlord", uv: [2 / 3, 0, 1 / 3, 0.5], hp: 460, scale: [9.2, 9.2] },
+  {
+    name: "Portal Warlord",
+    texture: "bossPortalWarlord",
+    hp: 360,
+    scale: [9.4, 9.7],
+    grounded: false,
+    speed: 2.2,
+    movement: "riftDrift",
+    bossAttacks: ["riftFan", "gravityOrb"],
+    attackDelay: 1.42,
+  },
+  {
+    name: "Void Queen",
+    texture: "bossVoidQueen",
+    hp: 440,
+    scale: [9.7, 10.1],
+    grounded: false,
+    speed: 2.55,
+    movement: "queenDive",
+    bossAttacks: ["wingLance", "spiralStorm"],
+    attackDelay: 1.26,
+  },
+  {
+    name: "Siege Titan",
+    texture: "bossSiegeTitan",
+    hp: 535,
+    scale: [10.2, 10.8],
+    grounded: true,
+    speed: 1.95,
+    movement: "titanMarch",
+    bossAttacks: ["cannonBurst", "railShot"],
+    attackDelay: 1.5,
+  },
+  {
+    name: "Cyber Necromancer",
+    texture: "bossCyberNecromancer",
+    hp: 640,
+    scale: [10.0, 10.7],
+    grounded: false,
+    speed: 2.35,
+    movement: "necromancerFloat",
+    bossAttacks: ["skullSwarm", "chainVolley"],
+    attackDelay: 1.2,
+  },
+  {
+    name: "Abyss Beast",
+    texture: "bossAbyssBeast",
+    hp: 760,
+    scale: [11.0, 10.2],
+    grounded: true,
+    speed: 2.75,
+    movement: "beastCharge",
+    bossAttacks: ["acidArc", "shockwave"],
+    attackDelay: 1.34,
+  },
+  {
+    name: "Violet Overlord",
+    texture: "bossVioletOverlord",
+    hp: 920,
+    scale: [11.4, 11.4],
+    grounded: false,
+    speed: 2.5,
+    movement: "overlordPhase",
+    bossAttacks: ["voidCross", "novaBurst"],
+    attackDelay: 1.1,
+  },
 ];
 
 const waveTracks = [
-  { root: 55, scale: [0, 3, 7, 10], tempo: 112, bass: "sawtooth", lead: "triangle", leadSteps: [0, 6, 10, 14], kickSteps: [0, 8], noiseSteps: [4, 12] },
-  { root: 61.74, scale: [0, 2, 5, 9], tempo: 124, bass: "square", lead: "sawtooth", leadSteps: [0, 3, 7, 11, 14], kickSteps: [0, 6, 10], noiseSteps: [2, 8, 14] },
-  { root: 65.41, scale: [0, 3, 6, 10], tempo: 132, bass: "sawtooth", lead: "square", leadSteps: [1, 4, 6, 9, 13, 15], kickSteps: [0, 5, 8, 13], noiseSteps: [3, 7, 11, 15] },
-  { root: 73.42, scale: [0, 1, 7, 11], tempo: 140, bass: "square", lead: "triangle", leadSteps: [0, 2, 5, 8, 12, 15], kickSteps: [0, 4, 8, 12], noiseSteps: [2, 6, 10, 14] },
-  { root: 82.41, scale: [0, 4, 6, 10], tempo: 150, bass: "sawtooth", lead: "sawtooth", leadSteps: [0, 1, 5, 7, 10, 13, 15], kickSteps: [0, 3, 6, 9, 12], noiseSteps: [1, 4, 7, 10, 13] },
-  { root: 92.5, scale: [0, 1, 5, 8], tempo: 162, bass: "square", lead: "sawtooth", leadSteps: [0, 2, 3, 6, 8, 11, 13, 15], kickSteps: [0, 2, 6, 8, 10, 14], noiseSteps: [1, 3, 5, 7, 9, 11, 13, 15] },
+  { root: 55, scale: [0, 3, 7, 10], tempo: 116, bass: "sawtooth", lead: "triangle", pad: "sine", leadSteps: [0, 6, 10, 14], arpSteps: [2, 5, 9, 13], kickSteps: [0, 8], noiseSteps: [4, 12], hatSteps: [2, 6, 10, 14] },
+  { root: 61.74, scale: [0, 2, 5, 9], tempo: 126, bass: "square", lead: "sawtooth", pad: "triangle", leadSteps: [0, 3, 7, 11, 14], arpSteps: [1, 4, 8, 12, 15], kickSteps: [0, 6, 10], noiseSteps: [2, 8, 14], hatSteps: [1, 3, 5, 9, 11, 13] },
+  { root: 65.41, scale: [0, 3, 6, 10], tempo: 134, bass: "sawtooth", lead: "square", pad: "sine", leadSteps: [1, 4, 6, 9, 13, 15], arpSteps: [0, 2, 5, 8, 11, 14], kickSteps: [0, 5, 8, 13], noiseSteps: [3, 7, 11, 15], hatSteps: [1, 3, 6, 9, 12, 15] },
+  { root: 73.42, scale: [0, 1, 7, 11], tempo: 142, bass: "square", lead: "triangle", pad: "sawtooth", leadSteps: [0, 2, 5, 8, 12, 15], arpSteps: [1, 3, 6, 10, 13], kickSteps: [0, 4, 8, 12], noiseSteps: [2, 6, 10, 14], hatSteps: [1, 2, 5, 7, 9, 11, 13, 15] },
+  { root: 82.41, scale: [0, 4, 6, 10], tempo: 152, bass: "sawtooth", lead: "sawtooth", pad: "triangle", leadSteps: [0, 1, 5, 7, 10, 13, 15], arpSteps: [2, 3, 6, 8, 11, 14], kickSteps: [0, 3, 6, 9, 12], noiseSteps: [1, 4, 7, 10, 13], hatSteps: [1, 2, 4, 5, 7, 8, 10, 11, 13, 14] },
+  { root: 92.5, scale: [0, 1, 5, 8], tempo: 164, bass: "square", lead: "sawtooth", pad: "sawtooth", leadSteps: [0, 2, 3, 6, 8, 11, 13, 15], arpSteps: [1, 4, 5, 7, 9, 10, 12, 14], kickSteps: [0, 2, 6, 8, 10, 14], noiseSteps: [1, 3, 5, 7, 9, 11, 13, 15], hatSteps: [0, 1, 3, 4, 6, 7, 9, 10, 12, 13, 15] },
 ];
 
 const game = {
@@ -243,9 +318,10 @@ function createMaskedMaterial(texture, uv, glowColor = 0xffffff, intensity = 0.2
       void main() {
         vec4 tex = texture2D(map, vUv);
         float brightness = max(max(tex.r, tex.g), tex.b);
-        if (brightness < 0.032) discard;
-        tex.rgb = tex.rgb * 1.32 + glow * glowIntensity * smoothstep(0.18, 1.0, brightness);
-        gl_FragColor = vec4(tex.rgb, smoothstep(0.035, 0.22, brightness));
+        if (brightness < 0.022) discard;
+        float alpha = smoothstep(0.022, 0.085, brightness);
+        tex.rgb = tex.rgb * 1.72 + glow * glowIntensity * smoothstep(0.08, 1.0, brightness);
+        gl_FragColor = vec4(tex.rgb, max(alpha, 0.72 * smoothstep(0.035, 0.1, brightness)));
       }
     `,
     transparent: true,
@@ -366,13 +442,13 @@ function makeArena() {
 function spawnEnemy(isBoss = false) {
   const difficulty = waveDifficulty(game.wave);
   const profile = isBoss ? bossProfiles[game.wave - 1] : enemyProfiles[(runtime.enemies.length + game.wave) % enemyProfiles.length];
-  const hp = Math.round(profile.hp * (isBoss ? 1 + (game.wave - 1) * 0.22 : difficulty));
-  const scale = [profile.scale[0] * (isBoss ? 1.25 : 1), profile.scale[1] * (isBoss ? 1.25 : 1)];
+  const hp = Math.round(profile.hp * (isBoss ? 1 + (game.wave - 1) * 0.3 : difficulty));
+  const scale = [profile.scale[0] * (isBoss ? 1.2 : 1), profile.scale[1] * (isBoss ? 1.2 : 1)];
   const material = createMaskedMaterial(
-    isBoss ? assets.bosses : assets[profile.texture],
-    profile.uv || [0, 0, 1, 1],
+    assets[profile.texture],
+    [0, 0, 1, 1],
     isBoss ? 0xb535ff : 0x74ff3c,
-    isBoss ? 0.28 : 0.18,
+    isBoss ? 0.34 : profile.grounded ? 0.18 : 0.24,
   );
   const mesh = new THREE.Group();
   const sprite = new THREE.Mesh(new THREE.PlaneGeometry(scale[0], scale[1]), material);
@@ -380,7 +456,7 @@ function spawnEnemy(isBoss = false) {
   healthBar.position.set(0, scale[1] * 0.55, 0.05);
   mesh.add(sprite, healthBar);
   const lane = isBoss ? 0 : (Math.random() - 0.5) * 24;
-  const baseY = isBoss ? 8.4 : profile.grounded ? scale[1] / 2 : 5.0 + Math.random() * 1.2;
+  const baseY = profile.grounded ? scale[1] / 2 : isBoss ? 8.3 + Math.random() * 1.2 : 5.0 + Math.random() * 1.2;
   mesh.position.set(lane, baseY, -54 + Math.random() * 5);
   scene.add(mesh);
 
@@ -397,7 +473,8 @@ function spawnEnemy(isBoss = false) {
     speed: (profile.speed || 4.4) * (0.9 + (game.wave - 1) * 0.09) * (isBoss ? 0.45 : 1),
     attackTimer: isBoss ? 1.65 : 2.2 + Math.random() * 1.35,
     strafe: Math.random() * Math.PI * 2,
-    radius: isBoss ? 5.6 : Math.max(scale[0], scale[1]) * 0.42,
+    bossAttackIndex: 0,
+    radius: isBoss ? Math.max(scale[0], scale[1]) * 0.48 : Math.max(scale[0], scale[1]) * 0.42,
   });
 }
 
@@ -665,6 +742,30 @@ function updateEnemyMotion(enemy, dt) {
     lateralSpeed = Math.sin(enemy.strafe * 3.3) * 4.8;
     y = enemy.baseY + Math.abs(Math.sin(game.time * 9 + enemy.strafe)) * 0.08;
     forwardScale = 1.12;
+  } else if (profile.movement === "riftDrift") {
+    lateralSpeed = Math.sin(enemy.strafe * 1.1) * 2.1 + Math.sin(game.time * 0.7) * 0.7;
+    y = enemy.baseY + Math.sin(game.time * 1.6 + enemy.strafe) * 0.7;
+    forwardScale = 0.58 + Math.max(0, Math.sin(game.time * 0.9)) * 0.28;
+  } else if (profile.movement === "queenDive") {
+    lateralSpeed = Math.sin(enemy.strafe * 1.8) * 5.0;
+    y = enemy.baseY + Math.sin(game.time * 2.5 + enemy.strafe) * 1.5;
+    forwardScale = 0.66 + Math.max(0, Math.sin(game.time * 1.3 + enemy.strafe)) * 0.42;
+  } else if (profile.movement === "titanMarch") {
+    lateralSpeed = Math.sin(enemy.strafe * 0.42) * 0.36;
+    forwardScale = Math.sin(game.time * 1.15 + enemy.strafe) > 0.62 ? 0.26 : 0.72;
+    y = enemy.baseY + Math.abs(Math.sin(game.time * 2.2 + enemy.strafe)) * 0.1;
+  } else if (profile.movement === "necromancerFloat") {
+    lateralSpeed = Math.sin(enemy.strafe * 0.95) * 3.2 + Math.sin(game.time * 2.1) * 0.55;
+    y = enemy.baseY + Math.sin(game.time * 1.35 + enemy.strafe) * 1.05;
+    forwardScale = 0.45 + Math.abs(Math.sin(game.time * 0.8 + enemy.strafe)) * 0.22;
+  } else if (profile.movement === "beastCharge") {
+    lateralSpeed = Math.sin(enemy.strafe * 1.35) * 1.35;
+    forwardScale = Math.sin(game.time * 0.95 + enemy.strafe) > 0.35 ? 1.05 : 0.36;
+    y = enemy.baseY + Math.abs(Math.sin(game.time * 4.6 + enemy.strafe)) * 0.12;
+  } else if (profile.movement === "overlordPhase") {
+    lateralSpeed = Math.sin(enemy.strafe * 1.45) * 3.8 + Math.sin(game.time * 3.2) * 0.8;
+    y = enemy.baseY + Math.sin(game.time * 2.05 + enemy.strafe) * 1.35;
+    forwardScale = 0.5 + Math.max(0, Math.sin(game.time * 1.7)) * 0.3;
   }
 
   mesh.position.z += enemy.speed * forwardScale * dt;
@@ -678,8 +779,9 @@ function updateEnemyMotion(enemy, dt) {
 function fireEnemyAttack(enemy) {
   const attack = enemy.profile.attack;
   if (enemy.boss) {
-    spawnEnemyBolt(enemy, { offsetX: -0.8, aimOffsetX: -1.2, sizeScale: 1.25, damageScale: 0.9 });
-    spawnEnemyBolt(enemy, { offsetX: 0.8, aimOffsetX: 1.2, sizeScale: 1.25, damageScale: 0.9 });
+    const pattern = enemy.profile.bossAttacks[enemy.bossAttackIndex % enemy.profile.bossAttacks.length];
+    enemy.bossAttackIndex += 1;
+    fireBossAttack(enemy, pattern);
   } else if (attack === "twin") {
     spawnEnemyBolt(enemy, { offsetX: -0.52, aimOffsetX: -0.85, speedScale: 1.18, damageScale: 0.72 });
     spawnEnemyBolt(enemy, { offsetX: 0.52, aimOffsetX: 0.85, speedScale: 1.18, damageScale: 0.72 });
@@ -694,10 +796,51 @@ function fireEnemyAttack(enemy) {
   }
 }
 
+function fireBossAttack(enemy, pattern) {
+  const fan = (offsets, options = {}) => {
+    for (const offset of offsets) {
+      spawnEnemyBolt(enemy, {
+        aimOffsetX: offset,
+        offsetX: offset * 0.18,
+        ...options,
+      });
+    }
+  };
+
+  if (pattern === "riftFan") {
+    fan([-4.8, -2.4, 0, 2.4, 4.8], { speedScale: 0.95, sizeScale: 1.08, damageScale: 0.62 });
+  } else if (pattern === "gravityOrb") {
+    spawnEnemyBolt(enemy, { offsetY: 0.9, speedScale: 0.62, sizeScale: 2.15, damageScale: 1.55 });
+  } else if (pattern === "wingLance") {
+    spawnEnemyBolt(enemy, { offsetX: -1.25, aimOffsetX: -1.7, speedScale: 1.62, sizeScale: 0.92, damageScale: 0.82 });
+    spawnEnemyBolt(enemy, { offsetX: 1.25, aimOffsetX: 1.7, speedScale: 1.62, sizeScale: 0.92, damageScale: 0.82 });
+  } else if (pattern === "spiralStorm") {
+    fan([-3.2, -1.4, 1.4, 3.2], { speedScale: 1.18, sizeScale: 0.95, damageScale: 0.58, offsetY: 0.8 });
+  } else if (pattern === "cannonBurst") {
+    fan([-2.6, 0, 2.6], { speedScale: 0.9, sizeScale: 1.6, damageScale: 0.98, offsetY: 0.25 });
+  } else if (pattern === "railShot") {
+    spawnEnemyBolt(enemy, { offsetY: 0.45, speedScale: 1.85, sizeScale: 0.78, damageScale: 1.45 });
+  } else if (pattern === "skullSwarm") {
+    fan([-3.4, -1.1, 1.1, 3.4], { speedScale: 1.34, sizeScale: 0.82, damageScale: 0.52, offsetY: 0.95 });
+  } else if (pattern === "chainVolley") {
+    fan([-2.1, 0, 2.1], { speedScale: 1.08, sizeScale: 1.18, damageScale: 0.84, offsetY: 0.4 });
+  } else if (pattern === "acidArc") {
+    fan([-2.8, 0, 2.8], { speedScale: 0.72, sizeScale: 1.75, damageScale: 0.9, offsetY: 0.15 });
+  } else if (pattern === "shockwave") {
+    fan([-5.6, -2.8, 0, 2.8, 5.6], { speedScale: 1.02, sizeScale: 1.05, damageScale: 0.56, offsetY: 0.1 });
+  } else if (pattern === "voidCross") {
+    spawnEnemyBolt(enemy, { offsetX: -1.45, aimOffsetX: 2.6, speedScale: 1.3, sizeScale: 1.2, damageScale: 0.82 });
+    spawnEnemyBolt(enemy, { offsetX: 1.45, aimOffsetX: -2.6, speedScale: 1.3, sizeScale: 1.2, damageScale: 0.82 });
+    spawnEnemyBolt(enemy, { offsetY: 1.1, speedScale: 1.05, sizeScale: 1.35, damageScale: 0.95 });
+  } else if (pattern === "novaBurst") {
+    fan([-6, -4, -2, 0, 2, 4, 6], { speedScale: 1.12, sizeScale: 1.0, damageScale: 0.5, offsetY: 0.9 });
+  }
+}
+
 function nextAttackDelay(enemy) {
   const ramp = 1 + (game.wave - 1) * 0.11;
   const attack = enemy.profile.attack;
-  const base = enemy.boss ? 1.3 : attack === "heavy" ? 2.7 : attack === "burst" ? 3.0 : attack === "twin" ? 1.9 : 1.45;
+  const base = enemy.boss ? enemy.profile.attackDelay : attack === "heavy" ? 2.7 : attack === "burst" ? 3.0 : attack === "twin" ? 1.9 : 1.45;
   return base / ramp;
 }
 
@@ -943,7 +1086,7 @@ const audio = {
     this.sfx = this.ctx.createGain();
     this.bossGain = this.ctx.createGain();
     this.master.gain.value = 0;
-    this.music.gain.value = Number(musicVolume.value);
+    this.music.gain.value = this.musicLevel();
     this.sfx.gain.value = Number(sfxVolume.value);
     this.bossGain.gain.value = 0;
     this.music.connect(this.master);
@@ -958,14 +1101,14 @@ const audio = {
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
     this.bossGain.gain.cancelScheduledValues(now);
-    this.bossGain.gain.linearRampToValueAtTime(boss ? 0.55 : 0, now + 0.35);
+    this.bossGain.gain.linearRampToValueAtTime(boss ? 0.72 : 0, now + 0.35);
   },
 
   setPaused(paused) {
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
     this.music.gain.cancelScheduledValues(now);
-    this.music.gain.linearRampToValueAtTime(paused ? 0.05 : Number(musicVolume.value), now + 0.18);
+    this.music.gain.linearRampToValueAtTime(paused ? 0.05 : this.musicLevel(), now + 0.18);
   },
 
   fadeOut() {
@@ -994,21 +1137,40 @@ const audio = {
   playStep(track, step) {
     const now = this.ctx.currentTime;
     const root = track.root;
-    if (track.kickSteps.includes(step)) this.note(root / 2, 0.13, track.bass, 0.2, now, this.music);
-    if (step % 4 === 2) this.note(root / 4, 0.08, "triangle", 0.08, now, this.music);
+    if (step === 0 || step === 8) this.chord(root / 2, [0, track.scale[1], track.scale[2] + 12], 0.62, track.pad, 0.035, now, this.music);
+    if (track.kickSteps.includes(step)) this.note(root / 2, 0.16, track.bass, 0.27, now, this.music);
+    if (step % 4 === 2) this.note(root / 4, 0.11, "triangle", 0.12, now, this.music);
     if (track.leadSteps.includes(step)) {
       const degree = track.scale[(step + this.currentWave) % track.scale.length];
-      this.note(root * 2 ** (degree / 12), 0.1, track.lead, 0.105, now, this.music);
+      this.note(root * 2 ** (degree / 12), 0.12, track.lead, 0.14, now, this.music);
     }
-    if (track.noiseSteps.includes(step)) this.noise(0.05, 0.16, now, this.music);
+    if (track.arpSteps.includes(step)) {
+      const degree = track.scale[(step * 2 + this.currentWave) % track.scale.length] + 12;
+      this.note(root * 2 ** (degree / 12), 0.075, "square", 0.09, now, this.music);
+    }
+    if (track.noiseSteps.includes(step)) this.noise(0.06, 0.2, now, this.music);
+    if (track.hatSteps.includes(step)) this.noise(0.025, 0.06, now, this.music);
     if (step % 8 === this.currentWave % 4) {
       const accent = track.scale[(step + 1) % track.scale.length] + 12;
-      this.note(root * 2 ** (accent / 12), 0.055, "sine", 0.07, now, this.music);
+      this.note(root * 2 ** (accent / 12), 0.07, "sine", 0.1, now, this.music);
     }
     if (this.isBoss && step % 2 === 1) {
-      this.note(root * 2 ** (track.scale[(step + 2) % track.scale.length] / 12) * 1.5, 0.14, "sawtooth", 0.15, now, this.bossGain);
-      this.noise(0.04, 0.22, now, this.bossGain);
+      this.note(root * 2 ** (track.scale[(step + 2) % track.scale.length] / 12) * 1.5, 0.16, "sawtooth", 0.18, now, this.bossGain);
+      this.noise(0.05, 0.28, now, this.bossGain);
     }
+    if (this.isBoss && step % 4 === 0) {
+      this.chord(root / 1.5, [0, track.scale[2], track.scale[3] + 12], 0.38, "sawtooth", 0.045, now, this.bossGain);
+    }
+  },
+
+  musicLevel() {
+    return Math.min(1.25, Number(musicVolume.value) * 1.12);
+  },
+
+  chord(root, degrees, length, type, volume, time, destination) {
+    degrees.forEach((degree, index) => {
+      this.note(root * 2 ** (degree / 12), length, type, volume / (index === 0 ? 1.2 : 1.55), time + index * 0.012, destination);
+    });
   },
 
   note(freq, length, type, volume, time, destination) {
@@ -1063,7 +1225,7 @@ const audio = {
 };
 
 musicVolume.addEventListener("input", () => {
-  if (audio.music) audio.music.gain.value = Number(musicVolume.value);
+  if (audio.music) audio.music.gain.value = audio.musicLevel();
 });
 
 sfxVolume.addEventListener("input", () => {
