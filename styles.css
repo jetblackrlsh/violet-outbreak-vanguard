@@ -70,6 +70,12 @@ input {
   backdrop-filter: blur(8px);
 }
 
+.result-panel {
+  width: min(900px, 100%);
+  max-height: calc(100vh - 36px);
+  overflow: auto;
+}
+
 .series {
   margin: 0 0 12px;
   color: var(--green);
@@ -129,6 +135,23 @@ h2 {
   display: block;
   margin-top: 4px;
   font-size: 1.5rem;
+}
+
+.wave-times {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-width: min(760px, 84vw);
+  margin: -8px 0 24px;
+}
+
+.wave-times span {
+  padding: 8px 10px;
+  border: 1px solid rgba(73, 255, 198, 0.22);
+  background: rgba(3, 20, 18, 0.55);
+  color: var(--text);
+  font-size: 0.78rem;
+  font-weight: 800;
 }
 
 .primary-button {
@@ -198,7 +221,9 @@ h2 {
 .weapon-status,
 .heal-action,
 .slow-action,
+.rapid-action,
 .score-pack,
+.timer-pack,
 .invuln-status,
 .controls-panel,
 .settings-panel {
@@ -212,7 +237,9 @@ h2 {
 .weapon-status,
 .heal-action,
 .slow-action,
+.rapid-action,
 .score-pack,
+.timer-pack,
 .invuln-status {
   padding: 12px 14px;
 }
@@ -221,7 +248,9 @@ h2 {
 .weapon-status span,
 .heal-action span,
 .slow-action span,
+.rapid-action span,
 .score-pack span,
+.timer-pack span,
 .invuln-status strong,
 .meter span {
   display: block;
@@ -232,7 +261,8 @@ h2 {
   text-transform: uppercase;
 }
 
-.status-block strong {
+.status-block strong,
+.timer-pack strong {
   display: block;
   margin-top: 4px;
   font-size: clamp(0.9rem, 1.3vw, 1.08rem);
@@ -372,7 +402,8 @@ h2 {
 }
 
 .heal-action,
-.slow-action {
+.slow-action,
+.rapid-action {
   min-width: 118px;
   border-color: rgba(116, 255, 60, 0.3);
   color: var(--text);
@@ -393,9 +424,22 @@ h2 {
     linear-gradient(135deg, rgba(3, 20, 18, 0.9), rgba(15, 10, 30, 0.82));
 }
 
+.rapid-action {
+  min-width: 148px;
+  border-color: rgba(116, 255, 60, 0.44);
+  background:
+    radial-gradient(circle at 80% 30%, rgba(116, 255, 60, 0.2), transparent 34px),
+    linear-gradient(135deg, rgba(9, 22, 12, 0.92), rgba(25, 13, 34, 0.84));
+}
+
 .slow-action.active {
   animation: slowFieldPulse 0.5s ease-in-out infinite alternate;
   border-color: rgba(73, 255, 198, 0.9);
+}
+
+.rapid-action.active {
+  animation: rapidPulse 0.34s ease-in-out infinite alternate;
+  border-color: rgba(116, 255, 60, 0.95);
 }
 
 .slow-icon {
@@ -425,7 +469,8 @@ h2 {
 }
 
 .heal-action strong,
-.slow-action strong {
+.slow-action strong,
+.rapid-action strong {
   display: block;
   margin-top: 4px;
   color: #ffe56b;
@@ -436,6 +481,10 @@ h2 {
   grid-column: 3;
   color: #49ffc6;
   text-align: right;
+}
+
+.rapid-action strong {
+  color: #74ff3c;
 }
 
 .slow-action span:not(.slow-icon) {
@@ -452,6 +501,15 @@ h2 {
   background: rgba(73, 255, 198, 0.16);
 }
 
+.rapid-action i {
+  position: relative;
+  display: block;
+  height: 7px;
+  margin-top: 8px;
+  overflow: hidden;
+  background: rgba(116, 255, 60, 0.14);
+}
+
 .slow-action i em {
   position: absolute;
   inset: 0 auto 0 0;
@@ -460,14 +518,27 @@ h2 {
   box-shadow: 0 0 14px rgba(73, 255, 198, 0.75);
 }
 
+.rapid-action i em {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 100%;
+  background: linear-gradient(90deg, #ffe56b, #74ff3c);
+  box-shadow: 0 0 14px rgba(116, 255, 60, 0.7);
+}
+
 .heal-action:disabled,
-.slow-action:disabled {
+.slow-action:disabled,
+.rapid-action:disabled {
   cursor: not-allowed;
   opacity: 0.46;
 }
 
 .slow-action:disabled {
   opacity: 0.76;
+}
+
+.rapid-action:disabled {
+  opacity: 0.72;
 }
 
 .score-pack strong {
@@ -624,6 +695,7 @@ h2 {
 .defense-alert #touch-dodge-right,
 .defense-alert .heal-action,
 .defense-alert .slow-action,
+.defense-alert .rapid-action,
 .defense-alert .controls-toggle {
   animation: defenseGlow 0.46s ease-in-out infinite alternate;
   border-color: rgba(116, 255, 60, 0.92);
@@ -668,6 +740,15 @@ h2 {
   }
   to {
     box-shadow: 0 0 28px rgba(73, 255, 198, 0.55), inset 0 0 22px rgba(73, 255, 198, 0.18);
+  }
+}
+
+@keyframes rapidPulse {
+  from {
+    box-shadow: 0 0 14px rgba(116, 255, 60, 0.2), inset 0 0 12px rgba(116, 255, 60, 0.08);
+  }
+  to {
+    box-shadow: 0 0 30px rgba(116, 255, 60, 0.58), inset 0 0 20px rgba(116, 255, 60, 0.18);
   }
 }
 
@@ -739,6 +820,12 @@ h2 {
   .slow-action {
     grid-column: 1;
     grid-row: 2;
+    min-width: 122px;
+  }
+
+  .rapid-action {
+    grid-column: 1;
+    grid-row: 3;
     min-width: 122px;
   }
 

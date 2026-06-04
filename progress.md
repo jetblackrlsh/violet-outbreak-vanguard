@@ -17,3 +17,7 @@ Original prompt: Static GitHub Pages first-person superhero action game with AI-
 - Implemented: base heal cost raised from 900 to 1500, which also raises cooldown-window spam heal cost through the existing multiplier.
 - Follow-up request: prevent healing while the player is invulnerable.
 - Implemented: heal input now fails during invulnerability and the heal HUD label shows `Invulnerable` while locked out.
+- Follow-up request: add score-cost Rapid Fire, wave-scaled ability costs, speed bonuses, wave timing, and deeper speedrun analytics on the end screen.
+- Implemented: Rapid Fire ability on F/B/HUD/touch, wave-scaled Heal/Slow/Rapid/Shield costs, active wave timer, wave completion speed bonuses, wave final time tracking, and end-screen stats for total time, damage dealt/taken/healed, fists fired, most used ability, and per-ability usages.
+- Verified: syntax and diff checks, standard web-game Playwright screenshot pass, Rapid Fire activation through normal score earning, wave-2 cost scaling after a completed wave, speed bonus/wave time tracking, healing analytics, and result-screen analytics rendering.
+- Note: one longer attempt to reach an end screen after a completed wave exceeded the automation timeout; completed-wave state and end-screen stat rendering were verified in separate browser runs.

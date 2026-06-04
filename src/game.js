@@ -8,6 +8,7 @@ const restartButton = document.querySelector("#restart-button");
 const pauseButton = document.querySelector("#pause-button");
 const healButton = document.querySelector("#heal-button");
 const slowButton = document.querySelector("#slow-button");
+const rapidButton = document.querySelector("#rapid-button");
 const settings = document.querySelector("#settings");
 const settingsToggle = document.querySelector("#settings-toggle");
 const musicVolume = document.querySelector("#music-volume");
@@ -15,6 +16,7 @@ const sfxVolume = document.querySelector("#sfx-volume");
 const controlsSidebar = document.querySelector("#controls-sidebar");
 const controlsToggle = document.querySelector("#controls-toggle");
 const touchFire = document.querySelector("#touch-fire");
+const touchRapid = document.querySelector("#touch-rapid");
 const touchShield = document.querySelector("#touch-shield");
 const touchDodgeLeft = document.querySelector("#touch-dodge-left");
 const touchDodgeRight = document.querySelector("#touch-dodge-right");
@@ -35,13 +37,26 @@ const ui = {
   slowLabel: document.querySelector("#slow-label"),
   slowValue: document.querySelector("#slow-value"),
   slowBar: document.querySelector("#slow-bar"),
+  rapidLabel: document.querySelector("#rapid-label"),
+  rapidValue: document.querySelector("#rapid-value"),
+  rapidBar: document.querySelector("#rapid-bar"),
   score: document.querySelector("#score-value"),
+  timer: document.querySelector("#timer-value"),
   resultKicker: document.querySelector("#result-kicker"),
   resultTitle: document.querySelector("#result-title"),
   resultCopy: document.querySelector("#result-copy"),
   resultWave: document.querySelector("#result-wave"),
   resultWavesCompleted: document.querySelector("#result-waves-completed"),
   resultDefeated: document.querySelector("#result-defeated"),
+  resultTotalTime: document.querySelector("#result-total-time"),
+  resultSpeedBonus: document.querySelector("#result-speed-bonus"),
+  resultDamageDealt: document.querySelector("#result-damage-dealt"),
+  resultDamageTaken: document.querySelector("#result-damage-taken"),
+  resultDamageHealed: document.querySelector("#result-damage-healed"),
+  resultFistsFired: document.querySelector("#result-fists-fired"),
+  resultMostUsed: document.querySelector("#result-most-used"),
+  resultAbilityUses: document.querySelector("#result-ability-uses"),
+  resultWaveTimes: document.querySelector("#result-wave-times"),
 };
 
 const scene = new THREE.Scene();
@@ -152,6 +167,9 @@ const SLOW_FIELD_DURATION = 3.25;
 const SLOW_FIELD_COOLDOWN = 9;
 const SLOW_FIELD_MULTIPLIER = 0.34;
 const SLOW_FIELD_COST = 300;
+const RAPID_FIRE_DURATION = 4.2;
+const RAPID_FIRE_COOLDOWN = 10;
+const RAPID_FIRE_COST = 450;
 const SHIELD_SCORE_DRAIN = 45;
 const HEAL_COOLDOWN = 5;
 const musicAssets = {
@@ -300,6 +318,8 @@ const game = {
   healSpamCount: 0,
   slowTimer: 0,
   slowCooldown: 0,
+  rapidTimer: 0,
+  rapidCooldown: 0,
   healCost: 1500,
   invulnerableTimer: 0,
   playerX: 0,
@@ -310,6 +330,15 @@ const game = {
   totalDefeated: 0,
   wavesCompleted: 0,
   time: 0,
+  waveStartTime: 0,
+  waveTimes: [],
+  speedBonus: 0,
+  damageDealt: 0,
+  damageTaken: 0,
+  damageHealed: 0,
+  fistsFired: 0,
+  abilityUses: { heal: 0, slow: 0, rapid: 0, shield: 0 },
+  shieldWasActive: false,
   bossSpawned: false,
   damageFlash: 0,
 };
@@ -326,6 +355,7 @@ const gamepadState = {
   fire: false,
   heal: false,
   slow: false,
+  rapid: false,
   pause: false,
   dodgeDirection: 0,
 };
@@ -537,7 +567,9 @@ function spawnPlayerProjectile() {
   mesh.position.copy(camera.position).add(new THREE.Vector3(0.45, -0.25, -1.2));
   scene.add(mesh);
   runtime.projectiles.push({ mesh, velocity: direction.multiplyScalar(68), life: 1.45, damage: 28 + game.wave * 3, target });
-  game.fireCooldown = Math.max(0.22, 0.43 - game.wave * 0.018);
+  game.fistsFired += 1;
+  const baseCooldown = Math.max(0.22, 0.43 - game.wave * 0.018);
+  game.fireCooldown = game.rapidTimer > 0 ? Math.max(0.07, baseCooldown * 0.34) : baseCooldown;
   audio.hit("fire");
 }
 
@@ -625,6 +657,7 @@ function resetGame() {
   gamepadState.fire = false;
   gamepadState.heal = false;
   gamepadState.slow = false;
+  gamepadState.rapid = false;
   gamepadState.pause = false;
   gamepadState.dodgeDirection = 0;
   game.fireCooldown = 0;
@@ -632,6 +665,8 @@ function resetGame() {
   game.healSpamCount = 0;
   game.slowTimer = 0;
   game.slowCooldown = 0;
+  game.rapidTimer = 0;
+  game.rapidCooldown = 0;
   game.invulnerableTimer = 0;
   game.playerX = 0;
   game.targetPlayerX = 0;
@@ -643,6 +678,15 @@ function resetGame() {
   game.totalDefeated = 0;
   game.wavesCompleted = 0;
   game.time = 0;
+  game.waveStartTime = 0;
+  game.waveTimes = [];
+  game.speedBonus = 0;
+  game.damageDealt = 0;
+  game.damageTaken = 0;
+  game.damageHealed = 0;
+  game.fistsFired = 0;
+  game.abilityUses = { heal: 0, slow: 0, rapid: 0, shield: 0 };
+  game.shieldWasActive = false;
   game.bossSpawned = false;
   game.damageFlash = 0;
   clearDefenseAlert();
@@ -699,6 +743,59 @@ function maxLiveEnemiesForWave(wave) {
   return 4 + Math.floor(wave * 1.05);
 }
 
+function costScale(wave = game.wave) {
+  return 1 + Math.max(0, wave - 1) * 0.22;
+}
+
+function scaledCost(base, wave = game.wave) {
+  return Math.round((base * costScale(wave)) / 25) * 25;
+}
+
+function currentSlowCost() {
+  return scaledCost(SLOW_FIELD_COST);
+}
+
+function currentRapidCost() {
+  return scaledCost(RAPID_FIRE_COST);
+}
+
+function currentShieldDrain() {
+  return Math.round(SHIELD_SCORE_DRAIN * costScale());
+}
+
+function waveParTime(wave) {
+  return 46 + wave * 7;
+}
+
+function formatRunTime(seconds) {
+  const safe = Math.max(0, seconds || 0);
+  const minutes = Math.floor(safe / 60);
+  const secs = safe - minutes * 60;
+  return `${minutes}:${secs.toFixed(1).padStart(4, "0")}`;
+}
+
+function completeWaveTiming(wave) {
+  if (game.waveTimes[wave - 1]) return;
+  const elapsed = Math.max(0, game.time - game.waveStartTime);
+  const par = waveParTime(wave);
+  const bonus = Math.max(0, Math.round((par - elapsed) * (12 + wave * 4)));
+  game.waveTimes[wave - 1] = { wave, time: elapsed, bonus };
+  game.speedBonus += bonus;
+  game.score += bonus;
+}
+
+function mostUsedAbility() {
+  const entries = Object.entries(game.abilityUses);
+  const [key, count] = entries.reduce((best, item) => (item[1] > best[1] ? item : best), ["none", 0]);
+  if (!count) return "None";
+  const labels = { heal: "Heal", slow: "Slow Field", rapid: "Rapid Fire", shield: "Shield" };
+  return `${labels[key]} (${count})`;
+}
+
+function abilityUseSummary() {
+  return `Heal ${game.abilityUses.heal} | Slow ${game.abilityUses.slow} | Rapid ${game.abilityUses.rapid} | Shield ${game.abilityUses.shield}`;
+}
+
 function startBossPhase() {
   game.phase = "boss";
   game.phaseKills = 0;
@@ -710,12 +807,14 @@ function startBossPhase() {
 }
 
 function nextWaveOrWin() {
+  completeWaveTiming(game.wave);
   game.wavesCompleted = Math.max(game.wavesCompleted, game.wave);
   if (game.wave >= MAX_WAVE) {
     finish(true);
     return;
   }
   game.wave += 1;
+  game.waveStartTime = game.time;
   game.phase = "wave";
   game.phaseKills = 0;
   game.targetKills = waveTargetKills(game.wave);
@@ -736,6 +835,7 @@ function finish(victory) {
   clearDefenseAlert();
   game.invulnerableTimer = 0;
   game.slowTimer = 0;
+  game.rapidTimer = 0;
   game.gamepadShieldHeld = false;
   ui.resultKicker.textContent = victory ? "Portal sealed" : `Wave ${finalWave} overrun`;
   ui.resultTitle.textContent = victory ? "Victory" : "Defeat";
@@ -745,6 +845,20 @@ function finish(victory) {
   ui.resultWave.textContent = finalWave.toString();
   ui.resultWavesCompleted.textContent = wavesCompleted.toString();
   ui.resultDefeated.textContent = defeated.toLocaleString();
+  ui.resultTotalTime.textContent = formatRunTime(game.time);
+  ui.resultSpeedBonus.textContent = game.speedBonus.toLocaleString();
+  ui.resultDamageDealt.textContent = Math.round(game.damageDealt).toLocaleString();
+  ui.resultDamageTaken.textContent = Math.round(game.damageTaken).toLocaleString();
+  ui.resultDamageHealed.textContent = Math.round(game.damageHealed).toLocaleString();
+  ui.resultFistsFired.textContent = game.fistsFired.toLocaleString();
+  ui.resultMostUsed.textContent = mostUsedAbility();
+  ui.resultAbilityUses.textContent = abilityUseSummary();
+  ui.resultWaveTimes.innerHTML = game.waveTimes.length
+    ? game.waveTimes
+      .filter(Boolean)
+      .map((entry) => `<span>Wave ${entry.wave}: ${formatRunTime(entry.time)} (+${entry.bonus.toLocaleString()})</span>`)
+      .join("")
+    : "<span>No waves completed</span>";
   updateHud();
   resultScreen.classList.remove("hidden");
 }
@@ -758,6 +872,8 @@ function update(dt) {
   if (previousHealCooldown > 0 && game.healCooldown === 0) game.healSpamCount = 0;
   game.slowTimer = Math.max(0, game.slowTimer - dt);
   game.slowCooldown = Math.max(0, game.slowCooldown - dt);
+  game.rapidTimer = Math.max(0, game.rapidTimer - dt);
+  game.rapidCooldown = Math.max(0, game.rapidCooldown - dt);
   game.invulnerableTimer = Math.max(0, game.invulnerableTimer - dt);
   game.dodgeCooldown = Math.max(0, game.dodgeCooldown - dt);
   game.playerX = THREE.MathUtils.damp(game.playerX, game.targetPlayerX, 8, dt);
@@ -766,9 +882,11 @@ function update(dt) {
 
   const shieldActive = (game.shieldHeld || game.gamepadShieldHeld) && game.shield > 0;
   if (shieldActive) {
+    if (!game.shieldWasActive) game.abilityUses.shield += 1;
+    game.shieldWasActive = true;
     game.shield = Math.max(0, game.shield - 28 * dt);
     if (game.score > 0) {
-      game.shieldSpendBank += SHIELD_SCORE_DRAIN * dt;
+      game.shieldSpendBank += currentShieldDrain() * dt;
       const charge = Math.floor(game.shieldSpendBank);
       if (charge > 0) {
         spendScore(Math.min(charge, game.score));
@@ -778,6 +896,7 @@ function update(dt) {
       game.shieldSpendBank = 0;
     }
   } else {
+    game.shieldWasActive = false;
     game.shield = Math.min(100, game.shield + (17 + game.wave * 1.8) * dt);
     game.shieldSpendBank = 0;
   }
@@ -1003,7 +1122,9 @@ function updateProjectiles(dt) {
 
     if (hitIndex >= 0) {
       const enemy = runtime.enemies[hitIndex];
+      const dealt = Math.min(projectile.damage, enemy.hp);
       enemy.hp -= projectile.damage;
+      game.damageDealt += dealt;
       burst(projectile.mesh.position, 0x74ff3c, 12);
       audio.hit("impact");
       removeProjectile(i);
@@ -1080,7 +1201,9 @@ function triggerDefenseAlert() {
 
 function takeDamage(amount) {
   if (game.invulnerableTimer > 0 || game.status !== "playing") return false;
+  const taken = Math.min(game.health, amount);
   game.health = Math.max(0, game.health - amount);
+  game.damageTaken += taken;
   game.damageFlash = 0.25;
   game.invulnerableTimer = 1.15;
   document.body.classList.remove("danger-pulse");
@@ -1093,7 +1216,7 @@ function takeDamage(amount) {
 
 function currentHealCost() {
   const spam = game.healCooldown > 0 ? game.healSpamCount : 0;
-  return Math.round(game.healCost * (1 + spam * 1.2 + spam * spam * 0.35));
+  return Math.round(scaledCost(game.healCost) * (1 + spam * 1.2 + spam * spam * 0.35));
 }
 
 function spendScore(points) {
@@ -1111,8 +1234,11 @@ function tryHeal() {
     audio.hit("enemy");
     return;
   }
+  const healed = Math.min(100 - game.health, 28);
   spendScore(cost);
   game.health = Math.min(100, game.health + 28);
+  game.damageHealed += healed;
+  game.abilityUses.heal += 1;
   game.healCooldown = Math.max(game.healCooldown, HEAL_COOLDOWN);
   game.healSpamCount += 1;
   burst(camera.position.clone().add(new THREE.Vector3(0, -0.25, -2.2)), 0x74ff3c, 20);
@@ -1122,14 +1248,32 @@ function tryHeal() {
 
 function trySlowField() {
   if (game.status !== "playing" || game.paused) return;
-  if (game.slowTimer > 0 || game.slowCooldown > 0 || game.score < SLOW_FIELD_COST) {
+  const cost = currentSlowCost();
+  if (game.slowTimer > 0 || game.slowCooldown > 0 || game.score < cost) {
     audio.hit("enemy");
     return;
   }
-  spendScore(SLOW_FIELD_COST);
+  spendScore(cost);
+  game.abilityUses.slow += 1;
   game.slowTimer = SLOW_FIELD_DURATION;
   game.slowCooldown = SLOW_FIELD_COOLDOWN;
   burst(camera.position.clone().add(new THREE.Vector3(0, -0.18, -2.8)), 0x49ffc6, 22);
+  audio.hit("block");
+  updateHud();
+}
+
+function tryRapidFire() {
+  if (game.status !== "playing" || game.paused) return;
+  const cost = currentRapidCost();
+  if (game.rapidTimer > 0 || game.rapidCooldown > 0 || game.score < cost) {
+    audio.hit("enemy");
+    return;
+  }
+  spendScore(cost);
+  game.abilityUses.rapid += 1;
+  game.rapidTimer = RAPID_FIRE_DURATION;
+  game.rapidCooldown = RAPID_FIRE_COOLDOWN;
+  burst(camera.position.clone().add(new THREE.Vector3(0.5, -0.18, -2.4)), 0x74ff3c, 26);
   audio.hit("block");
   updateHud();
 }
@@ -1178,11 +1322,15 @@ function updateHud() {
   ui.shieldValue.textContent = Math.ceil(game.shield);
   ui.healthBar.style.width = `${game.health}%`;
   ui.shieldBar.style.width = `${game.shield}%`;
+  ui.timer.textContent = formatRunTime(game.time - game.waveStartTime);
   ui.invulnStatus.classList.toggle("hidden", game.invulnerableTimer <= 0);
   ui.invulnValue.textContent = `${game.invulnerableTimer.toFixed(1)}s`;
-  ui.cooldownBar.style.width = `${Math.round((1 - Math.min(1, game.fireCooldown / 0.43)) * 100)}%`;
+  const maxFireCooldown = game.rapidTimer > 0 ? 0.15 : 0.43;
+  ui.cooldownBar.style.width = `${Math.round((1 - Math.min(1, game.fireCooldown / maxFireCooldown)) * 100)}%`;
   ui.weaponLabel.textContent =
-    game.fireCooldown > 0
+    game.rapidTimer > 0
+      ? `Rapid fire ${game.rapidTimer.toFixed(1)}s`
+      : game.fireCooldown > 0
       ? "Rocket fist charging"
       : runtime.enemies.length > 0
         ? "Rocket fist auto-lock"
@@ -1194,26 +1342,46 @@ function updateHud() {
     game.invulnerableTimer > 0 ? "Invulnerable" : game.health >= 100 ? "Health full" : game.healCooldown > 0 ? `Spam heal ${game.healCooldown.toFixed(1)}s` : "Heal";
   ui.healCost.textContent = canHeal ? `-${healCost}` : healCost.toString();
   const slowActive = game.slowTimer > 0;
-  const slowReady = game.status === "playing" && game.slowCooldown <= 0 && game.score >= SLOW_FIELD_COST;
+  const slowCost = currentSlowCost();
+  const slowReady = game.status === "playing" && game.slowCooldown <= 0 && game.score >= slowCost;
   slowButton.disabled = !slowActive && !slowReady;
   slowButton.classList.toggle("active", slowActive);
-  ui.slowLabel.textContent = slowActive ? "Time dilation" : game.slowCooldown > 0 ? "Recharging" : game.score < SLOW_FIELD_COST ? "Need points" : "Slow Field";
+  ui.slowLabel.textContent = slowActive ? "Time dilation" : game.slowCooldown > 0 ? "Recharging" : game.score < slowCost ? "Need points" : "Slow Field";
   ui.slowValue.textContent = slowActive
     ? `${game.slowTimer.toFixed(1)}s`
     : game.slowCooldown > 0
       ? `${game.slowCooldown.toFixed(1)}s`
-      : `-${SLOW_FIELD_COST}`;
+      : `-${slowCost}`;
   const slowMeter = slowActive
     ? game.slowTimer / SLOW_FIELD_DURATION
     : game.slowCooldown > 0
       ? 1 - game.slowCooldown / SLOW_FIELD_COOLDOWN
-      : game.score / SLOW_FIELD_COST;
+      : game.score / slowCost;
   ui.slowBar.style.width = `${Math.round(THREE.MathUtils.clamp(slowMeter, 0, 1) * 100)}%`;
+  const rapidActive = game.rapidTimer > 0;
+  const rapidCost = currentRapidCost();
+  const rapidReady = game.status === "playing" && game.rapidCooldown <= 0 && game.score >= rapidCost;
+  rapidButton.disabled = !rapidActive && !rapidReady;
+  rapidButton.classList.toggle("active", rapidActive);
+  ui.rapidLabel.textContent = rapidActive ? "Rapid firing" : game.rapidCooldown > 0 ? "Recharging" : game.score < rapidCost ? "Need points" : "Rapid Fire";
+  ui.rapidValue.textContent = rapidActive
+    ? `${game.rapidTimer.toFixed(1)}s`
+    : game.rapidCooldown > 0
+      ? `${game.rapidCooldown.toFixed(1)}s`
+      : `-${rapidCost}`;
+  const rapidMeter = rapidActive
+    ? game.rapidTimer / RAPID_FIRE_DURATION
+    : game.rapidCooldown > 0
+      ? 1 - game.rapidCooldown / RAPID_FIRE_COOLDOWN
+      : game.score / rapidCost;
+  ui.rapidBar.style.width = `${Math.round(THREE.MathUtils.clamp(rapidMeter, 0, 1) * 100)}%`;
   ui.score.textContent = game.score.toLocaleString();
 }
 
 function renderGameToText() {
   const healCost = currentHealCost();
+  const slowCost = currentSlowCost();
+  const rapidCost = currentRapidCost();
   return JSON.stringify({
     status: game.status,
     wave: game.wave,
@@ -1222,14 +1390,27 @@ function renderGameToText() {
     score: game.score,
     totalDefeated: game.totalDefeated,
     wavesCompleted: game.wavesCompleted,
-    shieldScoreDrain: SHIELD_SCORE_DRAIN,
+    waveTime: Number((game.time - game.waveStartTime).toFixed(2)),
+    totalTime: Number(game.time.toFixed(2)),
+    waveTimes: game.waveTimes.filter(Boolean).map((entry) => ({ wave: entry.wave, time: Number(entry.time.toFixed(2)), bonus: entry.bonus })),
+    speedBonus: game.speedBonus,
+    damageDealt: Math.round(game.damageDealt),
+    damageTaken: Math.round(game.damageTaken),
+    damageHealed: Math.round(game.damageHealed),
+    fistsFired: game.fistsFired,
+    abilityUses: { ...game.abilityUses },
+    mostUsedAbility: mostUsedAbility(),
+    shieldScoreDrain: currentShieldDrain(),
     healCooldown: Number(game.healCooldown.toFixed(2)),
     healSpamCount: game.healSpamCount,
     healCost,
     canHeal: game.status === "playing" && game.invulnerableTimer <= 0 && game.health < 100 && game.score >= healCost,
-    slowCost: SLOW_FIELD_COST,
+    slowCost,
     slowTimer: Number(game.slowTimer.toFixed(2)),
     slowCooldown: Number(game.slowCooldown.toFixed(2)),
+    rapidCost,
+    rapidTimer: Number(game.rapidTimer.toFixed(2)),
+    rapidCooldown: Number(game.rapidCooldown.toFixed(2)),
     invulnerableTimer: Number(game.invulnerableTimer.toFixed(2)),
     enemies: runtime.enemies.length,
     enemyBolts: runtime.enemyBolts.length,
@@ -1317,6 +1498,10 @@ function updateGamepadInput() {
   const slowPressed = buttonPressed(2);
   if (!game.paused && slowPressed && !gamepadState.slow) trySlowField();
   gamepadState.slow = slowPressed;
+
+  const rapidPressed = buttonPressed(1);
+  if (!game.paused && rapidPressed && !gamepadState.rapid) tryRapidFire();
+  gamepadState.rapid = rapidPressed;
 }
 
 function togglePause() {
@@ -1548,6 +1733,10 @@ window.addEventListener("keydown", (event) => {
     event.preventDefault();
     trySlowField();
   }
+  if (event.code === "KeyF") {
+    event.preventDefault();
+    tryRapidFire();
+  }
   if (event.code === "KeyP") togglePause();
 });
 
@@ -1560,12 +1749,14 @@ restartButton.addEventListener("click", () => window.location.reload());
 pauseButton.addEventListener("click", togglePause);
 healButton.addEventListener("click", tryHeal);
 slowButton.addEventListener("click", trySlowField);
+rapidButton.addEventListener("click", tryRapidFire);
 settingsToggle.addEventListener("click", () => settings.classList.toggle("open"));
 controlsToggle.addEventListener("click", () => {
   const open = controlsSidebar.classList.toggle("open");
   controlsToggle.setAttribute("aria-expanded", open ? "true" : "false");
 });
 touchFire.addEventListener("click", spawnPlayerProjectile);
+touchRapid.addEventListener("click", tryRapidFire);
 touchDodgeLeft.addEventListener("click", () => sideStep(-1));
 touchDodgeRight.addEventListener("click", () => sideStep(1));
 touchShield.addEventListener("pointerdown", () => {

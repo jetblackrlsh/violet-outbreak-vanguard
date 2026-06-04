@@ -35,8 +35,9 @@
             <span>Move aim: mouse or touch</span>
             <span>Dodge: A / D or arrows</span>
             <span>Fire: click / Space</span>
-            <span>Shield: right click / Q (-45/s)</span>
-            <span>Slow: R (-300)</span>
+            <span>Shield: right click / Q (wave cost/s)</span>
+            <span>Slow: R (wave cost)</span>
+            <span>Rapid: F (wave cost)</span>
             <span>Heal: E or button</span>
           </div>
         </div>
@@ -60,7 +61,40 @@
               <span>Player defeats</span>
               <strong id="result-defeated">0</strong>
             </div>
+            <div>
+              <span>Total time</span>
+              <strong id="result-total-time">0:00.0</strong>
+            </div>
+            <div>
+              <span>Speed bonus</span>
+              <strong id="result-speed-bonus">0</strong>
+            </div>
+            <div>
+              <span>Damage dealt</span>
+              <strong id="result-damage-dealt">0</strong>
+            </div>
+            <div>
+              <span>Damage taken</span>
+              <strong id="result-damage-taken">0</strong>
+            </div>
+            <div>
+              <span>Damage healed</span>
+              <strong id="result-damage-healed">0</strong>
+            </div>
+            <div>
+              <span>Fists fired</span>
+              <strong id="result-fists-fired">0</strong>
+            </div>
+            <div>
+              <span>Most used ability</span>
+              <strong id="result-most-used">None</strong>
+            </div>
+            <div>
+              <span>Ability uses</span>
+              <strong id="result-ability-uses">0</strong>
+            </div>
           </div>
+          <div id="result-wave-times" class="wave-times" aria-label="Wave completion times"></div>
           <button id="restart-button" class="primary-button" type="button">Run It Back</button>
         </div>
       </section>
@@ -70,6 +104,10 @@
           <div class="status-block">
             <span id="phase-label">Wave 1</span>
             <strong id="objective-label">Seal the breach</strong>
+          </div>
+          <div class="timer-pack">
+            <span>Wave time</span>
+            <strong id="timer-value">0:00.0</strong>
           </div>
           <div class="meter-stack">
             <label class="meter">
@@ -108,6 +146,11 @@
             <strong id="slow-value">Ready</strong>
             <i><em id="slow-bar"></em></i>
           </button>
+          <button id="rapid-button" class="rapid-action" type="button">
+            <span id="rapid-label">Rapid Fire</span>
+            <strong id="rapid-value">Ready</strong>
+            <i><em id="rapid-bar"></em></i>
+          </button>
           <div class="score-pack">
             <span>Score</span>
             <strong id="score-value">0</strong>
@@ -118,6 +161,7 @@
           <button id="touch-dodge-left" type="button">Left</button>
           <button id="touch-shield" type="button">Shield</button>
           <button id="touch-fire" type="button">Fire</button>
+          <button id="touch-rapid" type="button">Rapid</button>
           <button id="touch-dodge-right" type="button">Right</button>
         </div>
       </div>
@@ -135,7 +179,7 @@
             </div>
             <div>
               <dt>Shield</dt>
-              <dd>Right click, Q, LT, or LB (-45/s)</dd>
+              <dd>Right click, Q, LT, or LB (wave-scaled cost/s)</dd>
             </div>
             <div>
               <dt>Dodge</dt>
@@ -151,7 +195,11 @@
             </div>
             <div>
               <dt>Slow</dt>
-              <dd>R or X (-300)</dd>
+              <dd>R or X (wave-scaled cost)</dd>
+            </div>
+            <div>
+              <dt>Rapid Fire</dt>
+              <dd>F, B, or Rapid button (wave-scaled cost)</dd>
             </div>
             <div>
               <dt>Pause</dt>
