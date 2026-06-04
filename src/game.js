@@ -137,50 +137,62 @@ assets.building.wrapS = THREE.RepeatWrapping;
 assets.building.wrapT = THREE.RepeatWrapping;
 
 const MAX_WAVE = 6;
+const musicAssets = {
+  title: "assets/Survive the Breach - Title Music.mp3",
+  battle: "assets/Violet Outbreak Vanguard - Battle Music.mp3",
+  boss: "assets/Rocket Fist Rampage - Boss Music.mp3",
+  victory: "assets/Vanguard Victory - You Win.mp3",
+  defeat: "assets/Portal Breach Failure - Game Over.mp3",
+};
+
 const enemyProfiles = [
   {
     name: "Demon Brute",
     texture: "enemyBrute",
+    minWave: 1,
     hp: 34,
     speed: 3.35,
     score: 135,
     scale: [6.8, 6.8],
     grounded: true,
     movement: "stomp",
-    attack: "heavy",
+    attack: "slam",
   },
   {
     name: "Winged Imp",
     texture: "enemyImp",
+    minWave: 2,
     hp: 24,
     speed: 4.9,
     score: 120,
     scale: [6.0, 6.0],
     grounded: false,
     movement: "swoop",
-    attack: "twin",
+    attack: "diveTwin",
   },
   {
     name: "Siege Robot",
     texture: "enemyRobot",
+    minWave: 3,
     hp: 46,
     speed: 2.95,
     score: 165,
     scale: [6.3, 6.6],
     grounded: true,
     movement: "march",
-    attack: "burst",
+    attack: "rocketBurst",
   },
   {
     name: "Portal Crawler",
     texture: "enemyCrawler",
+    minWave: 4,
     hp: 30,
     speed: 4.2,
     score: 135,
     scale: [6.8, 6.1],
     grounded: true,
     movement: "skitter",
-    attack: "quick",
+    attack: "skitterShot",
   },
 ];
 
@@ -253,15 +265,6 @@ const bossProfiles = [
   },
 ];
 
-const waveTracks = [
-  { root: 55, scale: [0, 3, 7, 10], tempo: 116, bass: "sawtooth", lead: "triangle", pad: "sine", leadSteps: [0, 6, 10, 14], arpSteps: [2, 5, 9, 13], kickSteps: [0, 8], noiseSteps: [4, 12], hatSteps: [2, 6, 10, 14] },
-  { root: 61.74, scale: [0, 2, 5, 9], tempo: 126, bass: "square", lead: "sawtooth", pad: "triangle", leadSteps: [0, 3, 7, 11, 14], arpSteps: [1, 4, 8, 12, 15], kickSteps: [0, 6, 10], noiseSteps: [2, 8, 14], hatSteps: [1, 3, 5, 9, 11, 13] },
-  { root: 65.41, scale: [0, 3, 6, 10], tempo: 134, bass: "sawtooth", lead: "square", pad: "sine", leadSteps: [1, 4, 6, 9, 13, 15], arpSteps: [0, 2, 5, 8, 11, 14], kickSteps: [0, 5, 8, 13], noiseSteps: [3, 7, 11, 15], hatSteps: [1, 3, 6, 9, 12, 15] },
-  { root: 73.42, scale: [0, 1, 7, 11], tempo: 142, bass: "square", lead: "triangle", pad: "sawtooth", leadSteps: [0, 2, 5, 8, 12, 15], arpSteps: [1, 3, 6, 10, 13], kickSteps: [0, 4, 8, 12], noiseSteps: [2, 6, 10, 14], hatSteps: [1, 2, 5, 7, 9, 11, 13, 15] },
-  { root: 82.41, scale: [0, 4, 6, 10], tempo: 152, bass: "sawtooth", lead: "sawtooth", pad: "triangle", leadSteps: [0, 1, 5, 7, 10, 13, 15], arpSteps: [2, 3, 6, 8, 11, 14], kickSteps: [0, 3, 6, 9, 12], noiseSteps: [1, 4, 7, 10, 13], hatSteps: [1, 2, 4, 5, 7, 8, 10, 11, 13, 14] },
-  { root: 92.5, scale: [0, 1, 5, 8], tempo: 164, bass: "square", lead: "sawtooth", pad: "sawtooth", leadSteps: [0, 2, 3, 6, 8, 11, 13, 15], arpSteps: [1, 4, 5, 7, 9, 10, 12, 14], kickSteps: [0, 2, 6, 8, 10, 14], noiseSteps: [1, 3, 5, 7, 9, 11, 13, 15], hatSteps: [0, 1, 3, 4, 6, 7, 9, 10, 12, 13, 15] },
-];
-
 const game = {
   status: "menu",
   paused: false,
@@ -318,10 +321,10 @@ function createMaskedMaterial(texture, uv, glowColor = 0xffffff, intensity = 0.2
       void main() {
         vec4 tex = texture2D(map, vUv);
         float brightness = max(max(tex.r, tex.g), tex.b);
-        if (brightness < 0.022) discard;
-        float alpha = smoothstep(0.022, 0.085, brightness);
-        tex.rgb = tex.rgb * 1.72 + glow * glowIntensity * smoothstep(0.08, 1.0, brightness);
-        gl_FragColor = vec4(tex.rgb, max(alpha, 0.72 * smoothstep(0.035, 0.1, brightness)));
+        if (brightness < 0.014) discard;
+        float alpha = smoothstep(0.014, 0.042, brightness);
+        tex.rgb = tex.rgb * 1.58 + glow * glowIntensity * smoothstep(0.08, 1.0, brightness);
+        gl_FragColor = vec4(tex.rgb, alpha);
       }
     `,
     transparent: true,
@@ -441,7 +444,8 @@ function makeArena() {
 
 function spawnEnemy(isBoss = false) {
   const difficulty = waveDifficulty(game.wave);
-  const profile = isBoss ? bossProfiles[game.wave - 1] : enemyProfiles[(runtime.enemies.length + game.wave) % enemyProfiles.length];
+  const pool = availableEnemyProfiles(game.wave);
+  const profile = isBoss ? bossProfiles[game.wave - 1] : pool[Math.floor(Math.random() * pool.length)];
   const hp = Math.round(profile.hp * (isBoss ? 1 + (game.wave - 1) * 0.3 : difficulty));
   const scale = [profile.scale[0] * (isBoss ? 1.2 : 1), profile.scale[1] * (isBoss ? 1.2 : 1)];
   const material = createMaskedMaterial(
@@ -476,6 +480,10 @@ function spawnEnemy(isBoss = false) {
     bossAttackIndex: 0,
     radius: isBoss ? Math.max(scale[0], scale[1]) * 0.48 : Math.max(scale[0], scale[1]) * 0.42,
   });
+}
+
+function availableEnemyProfiles(wave) {
+  return enemyProfiles.filter((profile) => wave >= profile.minWave);
 }
 
 function spawnPlayerProjectile() {
@@ -658,7 +666,7 @@ function nextWaveOrWin() {
 
 function finish(victory) {
   game.status = victory ? "victory" : "defeat";
-  audio.fadeOut();
+  audio.playResult(victory);
   clearRuntime();
   ui.resultKicker.textContent = victory ? "Portal sealed" : "Vanguard down";
   ui.resultTitle.textContent = victory ? "Victory" : "Defeat";
@@ -782,17 +790,21 @@ function fireEnemyAttack(enemy) {
     const pattern = enemy.profile.bossAttacks[enemy.bossAttackIndex % enemy.profile.bossAttacks.length];
     enemy.bossAttackIndex += 1;
     fireBossAttack(enemy, pattern);
-  } else if (attack === "twin") {
-    spawnEnemyBolt(enemy, { offsetX: -0.52, aimOffsetX: -0.85, speedScale: 1.18, damageScale: 0.72 });
-    spawnEnemyBolt(enemy, { offsetX: 0.52, aimOffsetX: 0.85, speedScale: 1.18, damageScale: 0.72 });
-  } else if (attack === "burst") {
-    spawnEnemyBolt(enemy, { aimOffsetX: -2.2, speedScale: 0.95, damageScale: 0.68 });
-    spawnEnemyBolt(enemy, { aimOffsetX: 0, speedScale: 0.98, damageScale: 0.68 });
-    spawnEnemyBolt(enemy, { aimOffsetX: 2.2, speedScale: 0.95, damageScale: 0.68 });
-  } else if (attack === "heavy") {
-    spawnEnemyBolt(enemy, { speedScale: 0.82, damageScale: 1.55, sizeScale: 1.35 });
-  } else {
-    spawnEnemyBolt(enemy, { speedScale: 1.38, damageScale: 0.72, sizeScale: 0.85 });
+  } else if (attack === "diveTwin") {
+    spawnEnemyBolt(enemy, { offsetX: -0.8, offsetY: 0.85, aimOffsetX: -1.15, speedScale: 1.42, damageScale: 0.62, sizeScale: 0.78 });
+    spawnEnemyBolt(enemy, { offsetX: 0.8, offsetY: 0.85, aimOffsetX: 1.15, speedScale: 1.42, damageScale: 0.62, sizeScale: 0.78 });
+  } else if (attack === "rocketBurst") {
+    spawnEnemyBolt(enemy, { aimOffsetX: -2.4, speedScale: 0.88, damageScale: 0.82, sizeScale: 1.2 });
+    spawnEnemyBolt(enemy, { aimOffsetX: 0, speedScale: 1.05, damageScale: 0.86, sizeScale: 1.05 });
+    spawnEnemyBolt(enemy, { aimOffsetX: 2.4, speedScale: 0.88, damageScale: 0.82, sizeScale: 1.2 });
+  } else if (attack === "slam") {
+    spawnEnemyBolt(enemy, { offsetY: -0.35, speedScale: 0.72, damageScale: 1.45, sizeScale: 1.55 });
+    spawnEnemyBolt(enemy, { offsetX: -0.9, offsetY: -0.55, aimOffsetX: -2.8, speedScale: 0.92, damageScale: 0.52, sizeScale: 0.8 });
+    spawnEnemyBolt(enemy, { offsetX: 0.9, offsetY: -0.55, aimOffsetX: 2.8, speedScale: 0.92, damageScale: 0.52, sizeScale: 0.8 });
+  } else if (attack === "skitterShot") {
+    spawnEnemyBolt(enemy, { offsetX: -0.7, offsetY: -0.2, aimOffsetX: -3.4, speedScale: 1.32, damageScale: 0.48, sizeScale: 0.72 });
+    spawnEnemyBolt(enemy, { offsetX: 0.7, offsetY: -0.2, aimOffsetX: 3.4, speedScale: 1.32, damageScale: 0.48, sizeScale: 0.72 });
+    spawnEnemyBolt(enemy, { offsetY: -0.1, aimOffsetX: 0, speedScale: 1.52, damageScale: 0.46, sizeScale: 0.64 });
   }
 }
 
@@ -840,7 +852,7 @@ function fireBossAttack(enemy, pattern) {
 function nextAttackDelay(enemy) {
   const ramp = 1 + (game.wave - 1) * 0.11;
   const attack = enemy.profile.attack;
-  const base = enemy.boss ? enemy.profile.attackDelay : attack === "heavy" ? 2.7 : attack === "burst" ? 3.0 : attack === "twin" ? 1.9 : 1.45;
+  const base = enemy.boss ? enemy.profile.attackDelay : attack === "slam" ? 2.75 : attack === "rocketBurst" ? 2.85 : attack === "diveTwin" ? 1.8 : 1.35;
   return base / ramp;
 }
 
@@ -1063,9 +1075,8 @@ const audio = {
   master: null,
   music: null,
   sfx: null,
-  bossGain: null,
-  stepTimer: null,
-  step: 0,
+  tracks: {},
+  currentMusic: null,
   currentWave: 1,
   isBoss: false,
   started: false,
@@ -1076,32 +1087,89 @@ const audio = {
     this.started = true;
     this.master.gain.cancelScheduledValues(this.ctx.currentTime);
     this.master.gain.linearRampToValueAtTime(1, this.ctx.currentTime + 0.45);
-    this.schedule();
+    this.playMusic("battle", { loop: true, restart: true, rate: this.waveRate(game.wave) });
   },
 
   create() {
-    this.ctx = new AudioContext();
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    this.ctx = new AudioCtx();
     this.master = this.ctx.createGain();
     this.music = this.ctx.createGain();
     this.sfx = this.ctx.createGain();
-    this.bossGain = this.ctx.createGain();
     this.master.gain.value = 0;
     this.music.gain.value = this.musicLevel();
     this.sfx.gain.value = Number(sfxVolume.value);
-    this.bossGain.gain.value = 0;
     this.music.connect(this.master);
     this.sfx.connect(this.master);
-    this.bossGain.connect(this.music);
     this.master.connect(this.ctx.destination);
+
+    for (const [name, src] of Object.entries(musicAssets)) {
+      const element = new Audio(src);
+      element.preload = "auto";
+      element.crossOrigin = "anonymous";
+      element.loop = name === "title" || name === "battle" || name === "boss";
+      const source = this.ctx.createMediaElementSource(element);
+      const gain = this.ctx.createGain();
+      gain.gain.value = 0;
+      source.connect(gain);
+      gain.connect(this.music);
+      this.tracks[name] = { element, gain };
+    }
   },
 
   setWave(wave, boss) {
     this.currentWave = wave;
     this.isBoss = boss;
     if (!this.ctx) return;
+    this.playMusic(boss ? "boss" : "battle", {
+      loop: true,
+      restart: this.currentMusic !== (boss ? "boss" : "battle"),
+      rate: boss ? 1 : this.waveRate(wave),
+    });
+  },
+
+  playTitle() {
+    if (game.status !== "menu") return;
+    if (!this.ctx) this.create();
+    this.ctx.resume();
+    this.started = true;
+    this.master.gain.cancelScheduledValues(this.ctx.currentTime);
+    this.master.gain.linearRampToValueAtTime(0.82, this.ctx.currentTime + 0.35);
+    this.playMusic("title", { loop: true, restart: false, rate: 1 });
+  },
+
+  playResult(victory) {
+    if (!this.ctx) return;
+    this.ctx.resume();
+    this.playMusic(victory ? "victory" : "defeat", { loop: false, restart: true, rate: 1 });
+  },
+
+  playMusic(name, options = {}) {
+    if (!this.ctx || !this.tracks[name]) return;
+    const { loop = true, restart = false, rate = 1 } = options;
     const now = this.ctx.currentTime;
-    this.bossGain.gain.cancelScheduledValues(now);
-    this.bossGain.gain.linearRampToValueAtTime(boss ? 0.72 : 0, now + 0.35);
+    this.currentMusic = name;
+
+    for (const [trackName, track] of Object.entries(this.tracks)) {
+      const active = trackName === name;
+      track.gain.gain.cancelScheduledValues(now);
+      track.gain.gain.linearRampToValueAtTime(active ? 1 : 0, now + (active ? 0.45 : 0.65));
+      if (!active) {
+        window.setTimeout(() => {
+          if (this.currentMusic !== trackName) track.element.pause();
+        }, 720);
+      }
+    }
+
+    const track = this.tracks[name];
+    track.element.loop = loop;
+    track.element.playbackRate = rate;
+    if (restart) track.element.currentTime = 0;
+    track.element.play().catch(() => {});
+  },
+
+  waveRate(wave) {
+    return 0.98 + (wave - 1) * 0.018;
   },
 
   setPaused(paused) {
@@ -1111,66 +1179,8 @@ const audio = {
     this.music.gain.linearRampToValueAtTime(paused ? 0.05 : this.musicLevel(), now + 0.18);
   },
 
-  fadeOut() {
-    if (!this.ctx) return;
-    const now = this.ctx.currentTime;
-    this.master.gain.cancelScheduledValues(now);
-    this.master.gain.linearRampToValueAtTime(0, now + 1.25);
-  },
-
-  schedule() {
-    window.clearInterval(this.stepTimer);
-    this.stepTimer = window.setInterval(() => this.tick(), 90);
-  },
-
-  tick() {
-    if (!this.ctx || game.status !== "playing" || game.paused) return;
-    const track = waveTracks[this.currentWave - 1];
-    const secondsPerStep = 60 / track.tempo / 2;
-    if (!this.nextBeat || this.ctx.currentTime >= this.nextBeat) {
-      this.playStep(track, this.step);
-      this.step = (this.step + 1) % 16;
-      this.nextBeat = this.ctx.currentTime + secondsPerStep;
-    }
-  },
-
-  playStep(track, step) {
-    const now = this.ctx.currentTime;
-    const root = track.root;
-    if (step === 0 || step === 8) this.chord(root / 2, [0, track.scale[1], track.scale[2] + 12], 0.62, track.pad, 0.035, now, this.music);
-    if (track.kickSteps.includes(step)) this.note(root / 2, 0.16, track.bass, 0.27, now, this.music);
-    if (step % 4 === 2) this.note(root / 4, 0.11, "triangle", 0.12, now, this.music);
-    if (track.leadSteps.includes(step)) {
-      const degree = track.scale[(step + this.currentWave) % track.scale.length];
-      this.note(root * 2 ** (degree / 12), 0.12, track.lead, 0.14, now, this.music);
-    }
-    if (track.arpSteps.includes(step)) {
-      const degree = track.scale[(step * 2 + this.currentWave) % track.scale.length] + 12;
-      this.note(root * 2 ** (degree / 12), 0.075, "square", 0.09, now, this.music);
-    }
-    if (track.noiseSteps.includes(step)) this.noise(0.06, 0.2, now, this.music);
-    if (track.hatSteps.includes(step)) this.noise(0.025, 0.06, now, this.music);
-    if (step % 8 === this.currentWave % 4) {
-      const accent = track.scale[(step + 1) % track.scale.length] + 12;
-      this.note(root * 2 ** (accent / 12), 0.07, "sine", 0.1, now, this.music);
-    }
-    if (this.isBoss && step % 2 === 1) {
-      this.note(root * 2 ** (track.scale[(step + 2) % track.scale.length] / 12) * 1.5, 0.16, "sawtooth", 0.18, now, this.bossGain);
-      this.noise(0.05, 0.28, now, this.bossGain);
-    }
-    if (this.isBoss && step % 4 === 0) {
-      this.chord(root / 1.5, [0, track.scale[2], track.scale[3] + 12], 0.38, "sawtooth", 0.045, now, this.bossGain);
-    }
-  },
-
   musicLevel() {
     return Math.min(1.25, Number(musicVolume.value) * 1.12);
-  },
-
-  chord(root, degrees, length, type, volume, time, destination) {
-    degrees.forEach((degree, index) => {
-      this.note(root * 2 ** (degree / 12), length, type, volume / (index === 0 ? 1.2 : 1.55), time + index * 0.012, destination);
-    });
   },
 
   note(freq, length, type, volume, time, destination) {
@@ -1235,6 +1245,7 @@ sfxVolume.addEventListener("input", () => {
 window.addEventListener("resize", resize);
 window.addEventListener("mousemove", setPointerFromEvent);
 window.addEventListener("touchmove", setPointerFromEvent, { passive: true });
+window.addEventListener("pointerdown", () => audio.playTitle(), { passive: true });
 
 window.addEventListener("mousedown", (event) => {
   setPointerFromEvent(event);

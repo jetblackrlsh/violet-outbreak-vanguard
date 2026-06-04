@@ -2,7 +2,7 @@
 
 A static GitHub Pages-ready first-person superhero portal defense game.
 
-Open `index.html` directly or serve the repository root with any static web server. The game uses local generated image assets in `assets/`, Three.js from a CDN import map, and procedural Web Audio for adaptive synth music and SFX. No API key or build step is required.
+Open `index.html` directly or serve the repository root with any static web server. The game uses local generated image and music assets in `assets/`, Three.js from a CDN import map, and lightweight Web Audio SFX. No API key or build step is required.
 
 ## Controls
 
