@@ -271,7 +271,8 @@ const game = {
   wave: 1,
   phase: "wave",
   phaseKills: 0,
-  targetKills: 8,
+  targetKills: 12,
+  waveSpawned: 0,
   health: 100,
   shield: 100,
   shieldHeld: false,
@@ -474,7 +475,7 @@ function spawnEnemy(isBoss = false) {
     boss: isBoss,
     baseY,
     scale,
-    speed: (profile.speed || 4.4) * (0.9 + (game.wave - 1) * 0.09) * (isBoss ? 0.45 : 1),
+    speed: (profile.speed || 4.4) * (isBoss ? 0.45 + (game.wave - 1) * 0.04 : 1.34 + (game.wave - 1) * 0.07),
     attackTimer: isBoss ? 1.65 : 2.2 + Math.random() * 1.35,
     strafe: Math.random() * Math.PI * 2,
     bossAttackIndex: 0,
@@ -574,6 +575,7 @@ function resetGame() {
   game.phase = "wave";
   game.phaseKills = 0;
   game.targetKills = waveTargetKills(1);
+  game.waveSpawned = 0;
   game.health = 100;
   game.shield = 100;
   game.shieldHeld = false;
@@ -627,19 +629,19 @@ function disposeSceneObject(object) {
 }
 
 function waveTargetKills(wave) {
-  return 5 + wave * 2;
+  return [12, 15, 17, 19, 21, 24][wave - 1] || 24;
 }
 
 function waveDifficulty(wave) {
-  return 1 + (wave - 1) * 0.24;
+  return 1.08 + (wave - 1) * 0.24;
 }
 
 function spawnIntervalForWave(wave) {
-  return Math.max(0.72, 2.15 - wave * 0.18);
+  return Math.max(0.62, 1.55 - wave * 0.12);
 }
 
 function maxLiveEnemiesForWave(wave) {
-  return 3 + Math.floor(wave * 1.05);
+  return 4 + Math.floor(wave * 1.05);
 }
 
 function startBossPhase() {
@@ -661,6 +663,7 @@ function nextWaveOrWin() {
   game.phase = "wave";
   game.phaseKills = 0;
   game.targetKills = waveTargetKills(game.wave);
+  game.waveSpawned = 0;
   game.bossSpawned = false;
   game.spawnTimer = Math.max(0.55, spawnIntervalForWave(game.wave) * 0.72);
   audio.setWave(game.wave, false);
@@ -720,8 +723,9 @@ function updateSpawning(dt) {
   game.spawnTimer -= dt;
   const spawnInterval = spawnIntervalForWave(game.wave);
   const maxLive = maxLiveEnemiesForWave(game.wave);
-  if (game.spawnTimer <= 0 && runtime.enemies.length < maxLive) {
+  if (game.spawnTimer <= 0 && runtime.enemies.length < maxLive && game.waveSpawned < game.targetKills) {
     spawnEnemy(false);
+    game.waveSpawned += 1;
     game.spawnTimer = spawnInterval * (0.65 + Math.random() * 0.7);
   }
 
@@ -879,6 +883,7 @@ function updateEnemies(dt) {
     if (mesh.position.z > 4.5) {
       takeDamage(enemy.boss ? 18 + game.wave : 8 + Math.round(game.wave * 0.75));
       if (game.status !== "playing") return;
+      game.phaseKills = Math.min(game.targetKills, game.phaseKills + 1);
       burst(mesh.position, 0xff4568, enemy.boss ? 24 : 12);
       removeEnemy(i);
     }
@@ -1309,7 +1314,7 @@ window.addEventListener("keyup", (event) => {
 });
 
 startButton.addEventListener("click", resetGame);
-restartButton.addEventListener("click", resetGame);
+restartButton.addEventListener("click", () => window.location.reload());
 pauseButton.addEventListener("click", togglePause);
 healButton.addEventListener("click", tryHeal);
 settingsToggle.addEventListener("click", () => settings.classList.toggle("open"));
