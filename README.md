@@ -8,7 +8,8 @@ Open `index.html` directly or serve the repository root with any static web serv
 
 - Aim: mouse or touch
 - Fire rocket fist: left click, Space, or the touch Fire button
-- Green holo shield: right mouse, Shift, or the touch Shield button
+- Green holo shield: right mouse, Q, or the touch Shield button
+- Heal: E or the Heal button, spending score for health
 - Pause: `P` or the pause button
 
 ## GitHub Pages

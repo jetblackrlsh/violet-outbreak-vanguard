@@ -166,6 +166,7 @@ h2 {
 
 .status-block,
 .weapon-status,
+.heal-action,
 .score-pack,
 .settings-panel {
   border: 1px solid rgba(116, 255, 60, 0.18);
@@ -176,12 +177,14 @@ h2 {
 
 .status-block,
 .weapon-status,
+.heal-action,
 .score-pack {
   padding: 12px 14px;
 }
 
 .status-block span,
 .weapon-status span,
+.heal-action span,
 .score-pack span,
 .meter span {
   display: block;
@@ -304,6 +307,27 @@ h2 {
   text-align: right;
 }
 
+.heal-action {
+  min-width: 118px;
+  border-color: rgba(116, 255, 60, 0.3);
+  color: var(--text);
+  text-align: center;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.heal-action strong {
+  display: block;
+  margin-top: 4px;
+  color: #ffe56b;
+  font-size: 1rem;
+}
+
+.heal-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.46;
+}
+
 .score-pack strong {
   display: block;
   margin-top: 4px;
@@ -422,12 +446,38 @@ h2 {
   }
 
   .settings {
-    top: auto;
-    bottom: max(134px, calc(env(safe-area-inset-bottom) + 134px));
+    top: max(144px, calc(env(safe-area-inset-top) + 144px));
+    bottom: auto;
+  }
+
+  .mobile-controls {
+    bottom: max(232px, calc(env(safe-area-inset-bottom) + 232px));
   }
 
   .mobile-controls {
     display: flex;
+  }
+
+  .bottom-strip {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+  }
+
+  .weapon-status {
+    width: min(190px, 48vw);
+  }
+
+  .heal-action {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 96px;
+  }
+
+  .score-pack {
+    grid-column: 2;
+    grid-row: 2;
+    min-width: 96px;
   }
 
   .control-row {

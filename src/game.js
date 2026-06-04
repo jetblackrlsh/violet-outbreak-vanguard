@@ -6,6 +6,7 @@ const resultScreen = document.querySelector("#result-screen");
 const startButton = document.querySelector("#start-button");
 const restartButton = document.querySelector("#restart-button");
 const pauseButton = document.querySelector("#pause-button");
+const healButton = document.querySelector("#heal-button");
 const settings = document.querySelector("#settings");
 const settingsToggle = document.querySelector("#settings-toggle");
 const musicVolume = document.querySelector("#music-volume");
@@ -22,6 +23,8 @@ const ui = {
   shieldBar: document.querySelector("#shield-bar"),
   cooldownBar: document.querySelector("#cooldown-bar"),
   weaponLabel: document.querySelector("#weapon-label"),
+  healLabel: document.querySelector("#heal-label"),
+  healCost: document.querySelector("#heal-cost"),
   score: document.querySelector("#score-value"),
   resultKicker: document.querySelector("#result-kicker"),
   resultTitle: document.querySelector("#result-title"),
@@ -63,11 +66,22 @@ function loadTexture(path) {
   });
 }
 
-const [conceptTexture, portalTexture, enemyTexture, bossTexture] = await Promise.all([
+const [
+  conceptTexture,
+  portalTexture,
+  enemyTexture,
+  bossTexture,
+  groundTexture,
+  buildingTexture,
+  skylineTexture,
+] = await Promise.all([
   loadTexture("assets/concept-backdrop.png"),
   loadTexture("assets/portal.png"),
   loadTexture("assets/enemy-atlas.png"),
   loadTexture("assets/boss-atlas.png"),
+  loadTexture("assets/ground-texture.png"),
+  loadTexture("assets/building-texture.png"),
+  loadTexture("assets/skyline-backdrop.png"),
 ]);
 
 const assets = {
@@ -75,27 +89,36 @@ const assets = {
   portal: portalTexture,
   enemies: enemyTexture,
   bosses: bossTexture,
+  ground: groundTexture,
+  building: buildingTexture,
+  skyline: skylineTexture,
 };
 
 for (const texture of Object.values(assets)) {
   texture.colorSpace = THREE.SRGBColorSpace;
 }
 
+assets.ground.wrapS = THREE.RepeatWrapping;
+assets.ground.wrapT = THREE.RepeatWrapping;
+assets.ground.repeat.set(7, 8);
+assets.building.wrapS = THREE.RepeatWrapping;
+assets.building.wrapT = THREE.RepeatWrapping;
+
 const MAX_WAVE = 6;
 const enemyProfiles = [
-  { name: "Demon Brute", uv: [0, 0.5, 0.5, 0.5], hp: 32, speed: 7.2, score: 110, scale: [5.2, 5.2] },
-  { name: "Winged Imp", uv: [0.5, 0.5, 0.5, 0.5], hp: 22, speed: 9.8, score: 90, scale: [4.4, 4.4] },
-  { name: "Siege Robot", uv: [0, 0, 0.5, 0.5], hp: 42, speed: 6.2, score: 130, scale: [4.7, 4.9] },
-  { name: "Portal Crawler", uv: [0.5, 0, 0.5, 0.5], hp: 30, speed: 8.4, score: 105, scale: [5.1, 4.6] },
+  { name: "Demon Brute", uv: [0, 0.5, 0.5, 0.5], hp: 26, speed: 4.5, score: 120, scale: [5.2, 5.2] },
+  { name: "Winged Imp", uv: [0.5, 0.5, 0.5, 0.5], hp: 18, speed: 5.8, score: 105, scale: [4.4, 4.4] },
+  { name: "Siege Robot", uv: [0, 0, 0.5, 0.5], hp: 34, speed: 3.9, score: 145, scale: [4.7, 4.9] },
+  { name: "Portal Crawler", uv: [0.5, 0, 0.5, 0.5], hp: 24, speed: 5.1, score: 120, scale: [5.1, 4.6] },
 ];
 
 const bossProfiles = [
-  { name: "Portal Warlord", uv: [0, 0.5, 1 / 3, 0.5], hp: 220, scale: [8, 8.2] },
-  { name: "Void Queen", uv: [1 / 3, 0.5, 1 / 3, 0.5], hp: 260, scale: [8.4, 8.6] },
-  { name: "Siege Titan", uv: [2 / 3, 0.5, 1 / 3, 0.5], hp: 310, scale: [8.2, 8.6] },
-  { name: "Cyber Necromancer", uv: [0, 0, 1 / 3, 0.5], hp: 360, scale: [8.2, 8.8] },
-  { name: "Abyss Beast", uv: [1 / 3, 0, 1 / 3, 0.5], hp: 430, scale: [9, 8] },
-  { name: "Violet Overlord", uv: [2 / 3, 0, 1 / 3, 0.5], hp: 540, scale: [9.2, 9.2] },
+  { name: "Portal Warlord", uv: [0, 0.5, 1 / 3, 0.5], hp: 160, scale: [8, 8.2] },
+  { name: "Void Queen", uv: [1 / 3, 0.5, 1 / 3, 0.5], hp: 205, scale: [8.4, 8.6] },
+  { name: "Siege Titan", uv: [2 / 3, 0.5, 1 / 3, 0.5], hp: 255, scale: [8.2, 8.6] },
+  { name: "Cyber Necromancer", uv: [0, 0, 1 / 3, 0.5], hp: 310, scale: [8.2, 8.8] },
+  { name: "Abyss Beast", uv: [1 / 3, 0, 1 / 3, 0.5], hp: 375, scale: [9, 8] },
+  { name: "Violet Overlord", uv: [2 / 3, 0, 1 / 3, 0.5], hp: 460, scale: [9.2, 9.2] },
 ];
 
 const waveTracks = [
@@ -118,6 +141,8 @@ const game = {
   shield: 100,
   shieldHeld: false,
   fireCooldown: 0,
+  healCooldown: 0,
+  healCost: 350,
   spawnTimer: 0,
   score: 0,
   time: 0,
@@ -185,11 +210,13 @@ function makeArena() {
   const floor = new THREE.Mesh(
     new THREE.PlaneGeometry(120, 140, 34, 34),
     new THREE.MeshStandardMaterial({
-      color: 0x121018,
+      color: 0x9a8fae,
+      map: assets.ground,
+      emissiveMap: assets.ground,
       metalness: 0.28,
-      roughness: 0.65,
-      emissive: 0x16002c,
-      emissiveIntensity: 0.25,
+      roughness: 0.58,
+      emissive: 0x1b1030,
+      emissiveIntensity: 0.45,
       wireframe: false,
     }),
   );
@@ -210,26 +237,34 @@ function makeArena() {
   scene.add(portal);
   runtime.portal = portal;
 
+  const skyline = new THREE.Mesh(
+    new THREE.PlaneGeometry(132, 74.25),
+    new THREE.MeshBasicMaterial({ map: assets.skyline, transparent: true, opacity: 0.78, depthWrite: false, fog: false }),
+  );
+  skyline.position.set(0, 22, -96);
+  scene.add(skyline);
+
   const backdrop = new THREE.Mesh(
     new THREE.PlaneGeometry(108, 60.75),
-    new THREE.MeshBasicMaterial({ map: assets.concept, transparent: true, opacity: 0.22, depthWrite: false }),
+    new THREE.MeshBasicMaterial({ map: assets.concept, transparent: true, opacity: 0.1, depthWrite: false, fog: false }),
   );
-  backdrop.position.set(0, 17, -74);
+  backdrop.position.set(0, 17, -80);
   scene.add(backdrop);
+
+  const buildingMaterial = new THREE.MeshBasicMaterial({
+    color: 0xb5add0,
+    map: assets.building,
+    fog: true,
+  });
 
   for (let i = 0; i < 46; i += 1) {
     const side = i % 2 === 0 ? -1 : 1;
     const height = 4 + Math.random() * 14;
     const block = new THREE.Mesh(
       new THREE.BoxGeometry(3 + Math.random() * 8, height, 3 + Math.random() * 8),
-      new THREE.MeshStandardMaterial({
-        color: i % 3 === 0 ? 0x201437 : 0x16131d,
-        roughness: 0.75,
-        metalness: 0.35,
-        emissive: i % 4 === 0 ? 0x210043 : 0x000000,
-        emissiveIntensity: 0.7,
-      }),
+      buildingMaterial.clone(),
     );
+    block.material.color.multiplyScalar(i % 4 === 0 ? 1.1 : 0.86);
     block.position.set(side * (24 + Math.random() * 30), height / 2, -5 - Math.random() * 78);
     scene.add(block);
   }
@@ -249,7 +284,7 @@ function makeArena() {
 }
 
 function spawnEnemy(isBoss = false) {
-  const difficulty = 1 + (game.wave - 1) * 0.22;
+  const difficulty = waveDifficulty(game.wave);
   const profile = isBoss ? bossProfiles[game.wave - 1] : enemyProfiles[(runtime.enemies.length + game.wave) % enemyProfiles.length];
   const hp = Math.round(profile.hp * (isBoss ? 1 + (game.wave - 1) * 0.18 : difficulty));
   const material = createMaskedMaterial(isBoss ? assets.bosses : assets.enemies, profile.uv, isBoss ? 0xb535ff : 0x74ff3c, isBoss ? 0.28 : 0.18);
@@ -264,8 +299,8 @@ function spawnEnemy(isBoss = false) {
     hp,
     maxHp: hp,
     boss: isBoss,
-    speed: (profile.speed || 4.4) * difficulty * (isBoss ? 0.56 : 1),
-    attackTimer: isBoss ? 1.1 : 1.4 + Math.random() * 1.2,
+    speed: (profile.speed || 4.4) * (0.92 + (game.wave - 1) * 0.11) * (isBoss ? 0.45 : 1),
+    attackTimer: isBoss ? 1.65 : 2.2 + Math.random() * 1.35,
     strafe: Math.random() * Math.PI * 2,
     radius: isBoss ? 4.7 : 2.4,
   });
@@ -300,8 +335,13 @@ function spawnEnemyBolt(enemy) {
   mesh.position.copy(enemy.mesh.position).add(new THREE.Vector3(0, 0.35, 0.8));
   scene.add(mesh);
   const target = camera.position.clone().add(new THREE.Vector3(0, -0.2, 0));
-  const velocity = target.sub(mesh.position).normalize().multiplyScalar(enemy.boss ? 19 + game.wave : 16 + game.wave);
-  runtime.enemyBolts.push({ mesh, velocity, life: 3.1, damage: enemy.boss ? 14 + game.wave * 2 : 9 + game.wave });
+  const velocity = target.sub(mesh.position).normalize().multiplyScalar(enemy.boss ? 15 + game.wave : 12 + game.wave * 0.7);
+  runtime.enemyBolts.push({
+    mesh,
+    velocity,
+    life: 3.1,
+    damage: enemy.boss ? 8 + game.wave * 1.5 : 5 + Math.round(game.wave * 0.7),
+  });
 }
 
 function burst(position, color = 0x74ff3c, count = 10) {
@@ -338,10 +378,13 @@ function resetGame() {
   game.shield = 100;
   game.shieldHeld = false;
   game.fireCooldown = 0;
+  game.healCooldown = 0;
   game.spawnTimer = 0.75;
   game.score = 0;
   game.time = 0;
   game.bossSpawned = false;
+  game.damageFlash = 0;
+  document.body.classList.remove("danger-pulse");
   resultScreen.classList.add("hidden");
   startScreen.classList.add("hidden");
   pauseButton.textContent = "II";
@@ -353,18 +396,39 @@ function resetGame() {
 function clearRuntime() {
   for (const collection of [runtime.enemies, runtime.projectiles, runtime.enemyBolts, runtime.particles]) {
     for (const item of collection) {
-      scene.remove(item.mesh);
-      item.mesh.traverse?.((child) => {
-        child.geometry?.dispose?.();
-        child.material?.dispose?.();
-      });
+      disposeSceneObject(item.mesh);
     }
     collection.length = 0;
   }
 }
 
+function disposeSceneObject(object) {
+  if (!object) return;
+  scene.remove(object);
+  object.traverse?.((child) => {
+    child.geometry?.dispose?.();
+    if (Array.isArray(child.material)) {
+      child.material.forEach((material) => material.dispose?.());
+    } else {
+      child.material?.dispose?.();
+    }
+  });
+}
+
 function waveTargetKills(wave) {
-  return 7 + wave * 3;
+  return 5 + wave * 2;
+}
+
+function waveDifficulty(wave) {
+  return 0.88 + (wave - 1) * 0.16;
+}
+
+function spawnIntervalForWave(wave) {
+  return Math.max(0.72, 2.15 - wave * 0.18);
+}
+
+function maxLiveEnemiesForWave(wave) {
+  return 3 + Math.floor(wave * 1.05);
 }
 
 function startBossPhase() {
@@ -387,7 +451,7 @@ function nextWaveOrWin() {
   game.phaseKills = 0;
   game.targetKills = waveTargetKills(game.wave);
   game.bossSpawned = false;
-  game.spawnTimer = Math.max(0.42, 1.1 - game.wave * 0.09);
+  game.spawnTimer = Math.max(0.55, spawnIntervalForWave(game.wave) * 0.72);
   audio.setWave(game.wave, false);
   burst(new THREE.Vector3(0, 8, -45), 0x74ff3c, 28);
 }
@@ -408,6 +472,7 @@ function update(dt) {
   if (game.status !== "playing" || game.paused) return;
   game.time += dt;
   game.fireCooldown = Math.max(0, game.fireCooldown - dt);
+  game.healCooldown = Math.max(0, game.healCooldown - dt);
 
   const shieldActive = game.shieldHeld && game.shield > 0;
   if (shieldActive) {
@@ -438,8 +503,8 @@ function updateSpawning(dt) {
   }
 
   game.spawnTimer -= dt;
-  const spawnInterval = Math.max(0.32, 1.35 - game.wave * 0.13);
-  const maxLive = 5 + Math.floor(game.wave * 1.35);
+  const spawnInterval = spawnIntervalForWave(game.wave);
+  const maxLive = maxLiveEnemiesForWave(game.wave);
   if (game.spawnTimer <= 0 && runtime.enemies.length < maxLive) {
     spawnEnemy(false);
     game.spawnTimer = spawnInterval * (0.65 + Math.random() * 0.7);
@@ -461,15 +526,15 @@ function updateEnemies(dt) {
     mesh.lookAt(camera.position.x, mesh.position.y, camera.position.z);
     mesh.scale.setScalar(1 + Math.sin(game.time * 7 + i) * 0.025);
 
-    enemy.attackTimer -= dt * (1 + (game.wave - 1) * 0.09);
+    enemy.attackTimer -= dt * (0.9 + (game.wave - 1) * 0.08);
     if (enemy.attackTimer <= 0) {
       spawnEnemyBolt(enemy);
-      enemy.attackTimer = (enemy.boss ? 0.78 : 1.35) / (1 + game.wave * 0.12);
+      enemy.attackTimer = (enemy.boss ? 1.18 : 2.05) / (1 + (game.wave - 1) * 0.11);
       audio.hit("enemy");
     }
 
     if (mesh.position.z > 4.5) {
-      takeDamage(enemy.boss ? 28 : 16);
+      takeDamage(enemy.boss ? 18 + game.wave : 8 + Math.round(game.wave * 0.75));
       burst(mesh.position, 0xff4568, enemy.boss ? 24 : 12);
       removeEnemy(i);
     }
@@ -538,9 +603,7 @@ function updateParticles(dt) {
     particle.velocity.multiplyScalar(0.94);
     particle.mesh.material.opacity = Math.max(0, particle.life / particle.maxLife);
     if (particle.life <= 0) {
-      scene.remove(particle.mesh);
-      particle.mesh.geometry.dispose();
-      particle.mesh.material.dispose();
+      disposeSceneObject(particle.mesh);
       runtime.particles.splice(i, 1);
     }
   }
@@ -564,27 +627,33 @@ function takeDamage(amount) {
   if (game.health <= 0) finish(false);
 }
 
+function tryHeal() {
+  if (game.status !== "playing" || game.paused) return;
+  if (game.health >= 100 || game.score < game.healCost || game.healCooldown > 0) {
+    audio.hit("enemy");
+    return;
+  }
+  game.score -= game.healCost;
+  game.health = Math.min(100, game.health + 28);
+  game.healCooldown = 1.2;
+  burst(camera.position.clone().add(new THREE.Vector3(0, -0.25, -2.2)), 0x74ff3c, 20);
+  audio.hit("block");
+  updateHud();
+}
+
 function removeEnemy(index) {
   const [enemy] = runtime.enemies.splice(index, 1);
-  scene.remove(enemy.mesh);
-  enemy.mesh.geometry.dispose();
-  enemy.mesh.material.dispose();
+  disposeSceneObject(enemy.mesh);
 }
 
 function removeProjectile(index) {
   const [projectile] = runtime.projectiles.splice(index, 1);
-  scene.remove(projectile.mesh);
-  projectile.mesh.traverse((child) => {
-    child.geometry?.dispose?.();
-    child.material?.dispose?.();
-  });
+  disposeSceneObject(projectile.mesh);
 }
 
 function removeEnemyBolt(index) {
   const [bolt] = runtime.enemyBolts.splice(index, 1);
-  scene.remove(bolt.mesh);
-  bolt.mesh.geometry.dispose();
-  bolt.mesh.material.dispose();
+  disposeSceneObject(bolt.mesh);
 }
 
 function updateHud() {
@@ -600,6 +669,10 @@ function updateHud() {
   ui.shieldBar.style.width = `${game.shield}%`;
   ui.cooldownBar.style.width = `${Math.round((1 - Math.min(1, game.fireCooldown / 0.43)) * 100)}%`;
   ui.weaponLabel.textContent = game.fireCooldown <= 0 ? "Rocket fist ready" : "Rocket fist charging";
+  const canHeal = game.status === "playing" && game.health < 100 && game.score >= game.healCost && game.healCooldown <= 0;
+  healButton.disabled = !canHeal;
+  ui.healLabel.textContent = game.health >= 100 ? "Health full" : game.healCooldown > 0 ? "Heal charging" : "Heal";
+  ui.healCost.textContent = canHeal ? `-${game.healCost}` : game.healCost.toString();
   ui.score.textContent = game.score.toLocaleString();
 }
 
@@ -814,17 +887,25 @@ window.addEventListener("keydown", (event) => {
     event.preventDefault();
     spawnPlayerProjectile();
   }
-  if (event.code === "ShiftLeft" || event.code === "ShiftRight") game.shieldHeld = true;
+  if (event.code === "KeyQ") {
+    event.preventDefault();
+    game.shieldHeld = true;
+  }
+  if (event.code === "KeyE") {
+    event.preventDefault();
+    tryHeal();
+  }
   if (event.code === "KeyP") togglePause();
 });
 
 window.addEventListener("keyup", (event) => {
-  if (event.code === "ShiftLeft" || event.code === "ShiftRight") game.shieldHeld = false;
+  if (event.code === "KeyQ") game.shieldHeld = false;
 });
 
 startButton.addEventListener("click", resetGame);
 restartButton.addEventListener("click", resetGame);
 pauseButton.addEventListener("click", togglePause);
+healButton.addEventListener("click", tryHeal);
 settingsToggle.addEventListener("click", () => settings.classList.toggle("open"));
 touchFire.addEventListener("click", spawnPlayerProjectile);
 touchShield.addEventListener("pointerdown", () => {
