@@ -34,11 +34,13 @@ const ui = {
   healCost: document.querySelector("#heal-cost"),
   slowLabel: document.querySelector("#slow-label"),
   slowValue: document.querySelector("#slow-value"),
+  slowBar: document.querySelector("#slow-bar"),
   score: document.querySelector("#score-value"),
   resultKicker: document.querySelector("#result-kicker"),
   resultTitle: document.querySelector("#result-title"),
   resultCopy: document.querySelector("#result-copy"),
   resultWave: document.querySelector("#result-wave"),
+  resultWavesCompleted: document.querySelector("#result-waves-completed"),
   resultDefeated: document.querySelector("#result-defeated"),
 };
 
@@ -149,6 +151,8 @@ const MAX_WAVE = 6;
 const SLOW_FIELD_DURATION = 3.25;
 const SLOW_FIELD_COOLDOWN = 9;
 const SLOW_FIELD_MULTIPLIER = 0.34;
+const SLOW_FIELD_COST = 300;
+const SHIELD_SCORE_DRAIN = 45;
 const HEAL_COOLDOWN = 5;
 const musicAssets = {
   title: "assets/Survive the Breach - Title Music.mp3",
@@ -290,12 +294,13 @@ const game = {
   shield: 100,
   shieldHeld: false,
   gamepadShieldHeld: false,
+  shieldSpendBank: 0,
   fireCooldown: 0,
   healCooldown: 0,
   healSpamCount: 0,
   slowTimer: 0,
   slowCooldown: 0,
-  healCost: 900,
+  healCost: 1500,
   invulnerableTimer: 0,
   playerX: 0,
   targetPlayerX: 0,
@@ -303,6 +308,7 @@ const game = {
   spawnTimer: 0,
   score: 0,
   totalDefeated: 0,
+  wavesCompleted: 0,
   time: 0,
   bossSpawned: false,
   damageFlash: 0,
@@ -615,6 +621,7 @@ function resetGame() {
   game.shield = 100;
   game.shieldHeld = false;
   game.gamepadShieldHeld = false;
+  game.shieldSpendBank = 0;
   gamepadState.fire = false;
   gamepadState.heal = false;
   gamepadState.slow = false;
@@ -634,6 +641,7 @@ function resetGame() {
   game.spawnTimer = 0.75;
   game.score = 0;
   game.totalDefeated = 0;
+  game.wavesCompleted = 0;
   game.time = 0;
   game.bossSpawned = false;
   game.damageFlash = 0;
@@ -702,6 +710,7 @@ function startBossPhase() {
 }
 
 function nextWaveOrWin() {
+  game.wavesCompleted = Math.max(game.wavesCompleted, game.wave);
   if (game.wave >= MAX_WAVE) {
     finish(true);
     return;
@@ -721,6 +730,7 @@ function finish(victory) {
   game.status = victory ? "victory" : "defeat";
   const finalWave = game.wave;
   const defeated = game.totalDefeated;
+  const wavesCompleted = game.wavesCompleted;
   audio.playResult(victory);
   clearRuntime();
   clearDefenseAlert();
@@ -730,9 +740,10 @@ function finish(victory) {
   ui.resultKicker.textContent = victory ? "Portal sealed" : `Wave ${finalWave} overrun`;
   ui.resultTitle.textContent = victory ? "Victory" : "Defeat";
   ui.resultCopy.textContent = victory
-    ? `Final score ${game.score}. You defeated ${defeated} monsters and collapsed the violet breach before the city fell.`
-    : `Final score ${game.score}. You fell on wave ${finalWave} after defeating ${defeated} monsters.`;
+    ? `Final score ${game.score}. You cleared ${wavesCompleted} waves and defeated ${defeated} enemies before the city fell.`
+    : `Final score ${game.score}. You reached wave ${finalWave}, cleared ${wavesCompleted}, and defeated ${defeated} enemies.`;
   ui.resultWave.textContent = finalWave.toString();
+  ui.resultWavesCompleted.textContent = wavesCompleted.toString();
   ui.resultDefeated.textContent = defeated.toLocaleString();
   updateHud();
   resultScreen.classList.remove("hidden");
@@ -756,8 +767,19 @@ function update(dt) {
   const shieldActive = (game.shieldHeld || game.gamepadShieldHeld) && game.shield > 0;
   if (shieldActive) {
     game.shield = Math.max(0, game.shield - 28 * dt);
+    if (game.score > 0) {
+      game.shieldSpendBank += SHIELD_SCORE_DRAIN * dt;
+      const charge = Math.floor(game.shieldSpendBank);
+      if (charge > 0) {
+        spendScore(Math.min(charge, game.score));
+        game.shieldSpendBank -= charge;
+      }
+    } else {
+      game.shieldSpendBank = 0;
+    }
   } else {
     game.shield = Math.min(100, game.shield + (17 + game.wave * 1.8) * dt);
+    game.shieldSpendBank = 0;
   }
   runtime.shieldMesh.material.opacity = THREE.MathUtils.lerp(runtime.shieldMesh.material.opacity, shieldActive ? 0.35 : 0, 0.16);
   runtime.shieldMesh.rotation.z += dt * (shieldActive ? 1.8 : 0.35);
@@ -1074,14 +1096,22 @@ function currentHealCost() {
   return Math.round(game.healCost * (1 + spam * 1.2 + spam * spam * 0.35));
 }
 
+function spendScore(points) {
+  const cost = Math.max(0, Math.floor(points));
+  if (cost <= 0) return true;
+  if (game.score < cost) return false;
+  game.score -= cost;
+  return true;
+}
+
 function tryHeal() {
   if (game.status !== "playing" || game.paused) return;
   const cost = currentHealCost();
-  if (game.health >= 100 || game.score < cost) {
+  if (game.invulnerableTimer > 0 || game.health >= 100 || game.score < cost) {
     audio.hit("enemy");
     return;
   }
-  game.score -= cost;
+  spendScore(cost);
   game.health = Math.min(100, game.health + 28);
   game.healCooldown = Math.max(game.healCooldown, HEAL_COOLDOWN);
   game.healSpamCount += 1;
@@ -1092,10 +1122,11 @@ function tryHeal() {
 
 function trySlowField() {
   if (game.status !== "playing" || game.paused) return;
-  if (game.slowTimer > 0 || game.slowCooldown > 0) {
+  if (game.slowTimer > 0 || game.slowCooldown > 0 || game.score < SLOW_FIELD_COST) {
     audio.hit("enemy");
     return;
   }
+  spendScore(SLOW_FIELD_COST);
   game.slowTimer = SLOW_FIELD_DURATION;
   game.slowCooldown = SLOW_FIELD_COOLDOWN;
   burst(camera.position.clone().add(new THREE.Vector3(0, -0.18, -2.8)), 0x49ffc6, 22);
@@ -1157,25 +1188,32 @@ function updateHud() {
         ? "Rocket fist auto-lock"
         : "Rocket fist ready";
   const healCost = currentHealCost();
-  const canHeal = game.status === "playing" && game.health < 100 && game.score >= healCost;
+  const canHeal = game.status === "playing" && game.invulnerableTimer <= 0 && game.health < 100 && game.score >= healCost;
   healButton.disabled = !canHeal;
   ui.healLabel.textContent =
-    game.health >= 100 ? "Health full" : game.healCooldown > 0 ? `Spam heal ${game.healCooldown.toFixed(1)}s` : "Heal";
+    game.invulnerableTimer > 0 ? "Invulnerable" : game.health >= 100 ? "Health full" : game.healCooldown > 0 ? `Spam heal ${game.healCooldown.toFixed(1)}s` : "Heal";
   ui.healCost.textContent = canHeal ? `-${healCost}` : healCost.toString();
   const slowActive = game.slowTimer > 0;
-  const slowReady = game.status === "playing" && game.slowCooldown <= 0;
+  const slowReady = game.status === "playing" && game.slowCooldown <= 0 && game.score >= SLOW_FIELD_COST;
   slowButton.disabled = !slowActive && !slowReady;
   slowButton.classList.toggle("active", slowActive);
-  ui.slowLabel.textContent = slowActive ? "Time dilation" : game.slowCooldown > 0 ? "Recharging" : "Slow Field";
+  ui.slowLabel.textContent = slowActive ? "Time dilation" : game.slowCooldown > 0 ? "Recharging" : game.score < SLOW_FIELD_COST ? "Need points" : "Slow Field";
   ui.slowValue.textContent = slowActive
     ? `${game.slowTimer.toFixed(1)}s`
     : game.slowCooldown > 0
       ? `${game.slowCooldown.toFixed(1)}s`
-      : "Ready";
+      : `-${SLOW_FIELD_COST}`;
+  const slowMeter = slowActive
+    ? game.slowTimer / SLOW_FIELD_DURATION
+    : game.slowCooldown > 0
+      ? 1 - game.slowCooldown / SLOW_FIELD_COOLDOWN
+      : game.score / SLOW_FIELD_COST;
+  ui.slowBar.style.width = `${Math.round(THREE.MathUtils.clamp(slowMeter, 0, 1) * 100)}%`;
   ui.score.textContent = game.score.toLocaleString();
 }
 
 function renderGameToText() {
+  const healCost = currentHealCost();
   return JSON.stringify({
     status: game.status,
     wave: game.wave,
@@ -1183,9 +1221,13 @@ function renderGameToText() {
     health: Math.ceil(game.health),
     score: game.score,
     totalDefeated: game.totalDefeated,
+    wavesCompleted: game.wavesCompleted,
+    shieldScoreDrain: SHIELD_SCORE_DRAIN,
     healCooldown: Number(game.healCooldown.toFixed(2)),
     healSpamCount: game.healSpamCount,
-    healCost: currentHealCost(),
+    healCost,
+    canHeal: game.status === "playing" && game.invulnerableTimer <= 0 && game.health < 100 && game.score >= healCost,
+    slowCost: SLOW_FIELD_COST,
     slowTimer: Number(game.slowTimer.toFixed(2)),
     slowCooldown: Number(game.slowCooldown.toFixed(2)),
     invulnerableTimer: Number(game.invulnerableTimer.toFixed(2)),

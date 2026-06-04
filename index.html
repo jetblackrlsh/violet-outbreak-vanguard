@@ -35,8 +35,8 @@
             <span>Move aim: mouse or touch</span>
             <span>Dodge: A / D or arrows</span>
             <span>Fire: click / Space</span>
-            <span>Shield: right click / Q</span>
-            <span>Slow: R</span>
+            <span>Shield: right click / Q (-45/s)</span>
+            <span>Slow: R (-300)</span>
             <span>Heal: E or button</span>
           </div>
         </div>
@@ -49,11 +49,15 @@
           <p id="result-copy">The portal has gone quiet.</p>
           <div class="result-stats" aria-label="Run stats">
             <div>
-              <span>Final wave</span>
+              <span>Wave reached</span>
               <strong id="result-wave">1</strong>
             </div>
             <div>
-              <span>Defeated</span>
+              <span>Waves cleared</span>
+              <strong id="result-waves-completed">0</strong>
+            </div>
+            <div>
+              <span>Player defeats</span>
               <strong id="result-defeated">0</strong>
             </div>
           </div>
@@ -96,11 +100,13 @@
           </div>
           <button id="heal-button" class="heal-action" type="button">
             <span id="heal-label">Heal</span>
-            <strong id="heal-cost">900</strong>
+            <strong id="heal-cost">1500</strong>
           </button>
           <button id="slow-button" class="slow-action" type="button">
+            <span class="slow-icon" aria-hidden="true"></span>
             <span id="slow-label">Slow Field</span>
             <strong id="slow-value">Ready</strong>
+            <i><em id="slow-bar"></em></i>
           </button>
           <div class="score-pack">
             <span>Score</span>
@@ -129,7 +135,7 @@
             </div>
             <div>
               <dt>Shield</dt>
-              <dd>Right click, Q, LT, or LB</dd>
+              <dd>Right click, Q, LT, or LB (-45/s)</dd>
             </div>
             <div>
               <dt>Dodge</dt>
@@ -145,7 +151,7 @@
             </div>
             <div>
               <dt>Slow</dt>
-              <dd>R or X</dd>
+              <dd>R or X (-300)</dd>
             </div>
             <div>
               <dt>Pause</dt>
