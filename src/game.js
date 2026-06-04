@@ -567,6 +567,7 @@ function getAimDirection() {
 
 function resetGame() {
   clearRuntime();
+  clock.getDelta();
   game.status = "playing";
   game.paused = false;
   game.wave = 1;
@@ -592,6 +593,8 @@ function resetGame() {
   resultScreen.classList.add("hidden");
   startScreen.classList.add("hidden");
   pauseButton.textContent = "II";
+  runtime.shieldMesh.material.opacity = 0;
+  if (runtime.portal) runtime.portal.scale.setScalar(1);
   audio.start();
   audio.setWave(1, false);
   updateHud();
@@ -875,6 +878,7 @@ function updateEnemies(dt) {
 
     if (mesh.position.z > 4.5) {
       takeDamage(enemy.boss ? 18 + game.wave : 8 + Math.round(game.wave * 0.75));
+      if (game.status !== "playing") return;
       burst(mesh.position, 0xff4568, enemy.boss ? 24 : 12);
       removeEnemy(i);
     }
@@ -935,6 +939,7 @@ function updateEnemyBolts(dt, shieldActive) {
         audio.hit("block");
       } else {
         takeDamage(bolt.damage);
+        if (game.status !== "playing") return;
         burst(bolt.mesh.position, 0xff4568, 10);
       }
       removeEnemyBolt(i);
@@ -1000,16 +1005,19 @@ function sideStep(direction) {
 
 function removeEnemy(index) {
   const [enemy] = runtime.enemies.splice(index, 1);
+  if (!enemy) return;
   disposeSceneObject(enemy.mesh);
 }
 
 function removeProjectile(index) {
   const [projectile] = runtime.projectiles.splice(index, 1);
+  if (!projectile) return;
   disposeSceneObject(projectile.mesh);
 }
 
 function removeEnemyBolt(index) {
   const [bolt] = runtime.enemyBolts.splice(index, 1);
+  if (!bolt) return;
   disposeSceneObject(bolt.mesh);
 }
 
@@ -1046,10 +1054,15 @@ function resize() {
 }
 
 function render() {
-  const dt = Math.min(clock.getDelta(), 0.05);
-  update(dt);
-  renderer.render(scene, camera);
-  requestAnimationFrame(render);
+  try {
+    const dt = Math.min(clock.getDelta(), 0.05);
+    update(dt);
+    renderer.render(scene, camera);
+  } catch (error) {
+    console.error(error);
+  } finally {
+    requestAnimationFrame(render);
+  }
 }
 
 function setPointerFromEvent(event) {
