@@ -7,6 +7,7 @@ const startButton = document.querySelector("#start-button");
 const restartButton = document.querySelector("#restart-button");
 const pauseButton = document.querySelector("#pause-button");
 const healButton = document.querySelector("#heal-button");
+const slowButton = document.querySelector("#slow-button");
 const settings = document.querySelector("#settings");
 const settingsToggle = document.querySelector("#settings-toggle");
 const musicVolume = document.querySelector("#music-volume");
@@ -25,14 +26,20 @@ const ui = {
   healthBar: document.querySelector("#health-bar"),
   shieldValue: document.querySelector("#shield-value"),
   shieldBar: document.querySelector("#shield-bar"),
+  invulnStatus: document.querySelector("#invuln-status"),
+  invulnValue: document.querySelector("#invuln-value"),
   cooldownBar: document.querySelector("#cooldown-bar"),
   weaponLabel: document.querySelector("#weapon-label"),
   healLabel: document.querySelector("#heal-label"),
   healCost: document.querySelector("#heal-cost"),
+  slowLabel: document.querySelector("#slow-label"),
+  slowValue: document.querySelector("#slow-value"),
   score: document.querySelector("#score-value"),
   resultKicker: document.querySelector("#result-kicker"),
   resultTitle: document.querySelector("#result-title"),
   resultCopy: document.querySelector("#result-copy"),
+  resultWave: document.querySelector("#result-wave"),
+  resultDefeated: document.querySelector("#result-defeated"),
 };
 
 const scene = new THREE.Scene();
@@ -139,6 +146,10 @@ assets.building.wrapS = THREE.RepeatWrapping;
 assets.building.wrapT = THREE.RepeatWrapping;
 
 const MAX_WAVE = 6;
+const SLOW_FIELD_DURATION = 3.25;
+const SLOW_FIELD_COOLDOWN = 9;
+const SLOW_FIELD_MULTIPLIER = 0.34;
+const HEAL_COOLDOWN = 5;
 const musicAssets = {
   title: "assets/Survive the Breach - Title Music.mp3",
   battle: "assets/Violet Outbreak Vanguard - Battle Music.mp3",
@@ -281,12 +292,17 @@ const game = {
   gamepadShieldHeld: false,
   fireCooldown: 0,
   healCooldown: 0,
+  healSpamCount: 0,
+  slowTimer: 0,
+  slowCooldown: 0,
   healCost: 900,
+  invulnerableTimer: 0,
   playerX: 0,
   targetPlayerX: 0,
   dodgeCooldown: 0,
   spawnTimer: 0,
   score: 0,
+  totalDefeated: 0,
   time: 0,
   bossSpawned: false,
   damageFlash: 0,
@@ -303,6 +319,7 @@ const runtime = {
 const gamepadState = {
   fire: false,
   heal: false,
+  slow: false,
   pause: false,
   dodgeDirection: 0,
 };
@@ -556,6 +573,7 @@ function spawnEnemyBolt(enemy, options = {}) {
   runtime.enemyBolts.push({
     mesh,
     velocity,
+    owner: enemy,
     life: 3.1,
     damage: (enemy.boss ? 8 + game.wave * 1.5 : 5 + Math.round(game.wave * 0.7)) * (options.damageScale || 1),
   });
@@ -599,10 +617,15 @@ function resetGame() {
   game.gamepadShieldHeld = false;
   gamepadState.fire = false;
   gamepadState.heal = false;
+  gamepadState.slow = false;
   gamepadState.pause = false;
   gamepadState.dodgeDirection = 0;
   game.fireCooldown = 0;
   game.healCooldown = 0;
+  game.healSpamCount = 0;
+  game.slowTimer = 0;
+  game.slowCooldown = 0;
+  game.invulnerableTimer = 0;
   game.playerX = 0;
   game.targetPlayerX = 0;
   game.dodgeCooldown = 0;
@@ -610,6 +633,7 @@ function resetGame() {
   camera.rotation.z = 0;
   game.spawnTimer = 0.75;
   game.score = 0;
+  game.totalDefeated = 0;
   game.time = 0;
   game.bossSpawned = false;
   game.damageFlash = 0;
@@ -695,15 +719,22 @@ function nextWaveOrWin() {
 
 function finish(victory) {
   game.status = victory ? "victory" : "defeat";
+  const finalWave = game.wave;
+  const defeated = game.totalDefeated;
   audio.playResult(victory);
   clearRuntime();
   clearDefenseAlert();
+  game.invulnerableTimer = 0;
+  game.slowTimer = 0;
   game.gamepadShieldHeld = false;
-  ui.resultKicker.textContent = victory ? "Portal sealed" : "Vanguard down";
+  ui.resultKicker.textContent = victory ? "Portal sealed" : `Wave ${finalWave} overrun`;
   ui.resultTitle.textContent = victory ? "Victory" : "Defeat";
   ui.resultCopy.textContent = victory
-    ? `Final score ${game.score}. The violet breach collapsed before the city fell.`
-    : `Final score ${game.score}. The portal overran the line.`;
+    ? `Final score ${game.score}. You defeated ${defeated} monsters and collapsed the violet breach before the city fell.`
+    : `Final score ${game.score}. You fell on wave ${finalWave} after defeating ${defeated} monsters.`;
+  ui.resultWave.textContent = finalWave.toString();
+  ui.resultDefeated.textContent = defeated.toLocaleString();
+  updateHud();
   resultScreen.classList.remove("hidden");
 }
 
@@ -711,7 +742,12 @@ function update(dt) {
   if (game.status !== "playing" || game.paused) return;
   game.time += dt;
   game.fireCooldown = Math.max(0, game.fireCooldown - dt);
+  const previousHealCooldown = game.healCooldown;
   game.healCooldown = Math.max(0, game.healCooldown - dt);
+  if (previousHealCooldown > 0 && game.healCooldown === 0) game.healSpamCount = 0;
+  game.slowTimer = Math.max(0, game.slowTimer - dt);
+  game.slowCooldown = Math.max(0, game.slowCooldown - dt);
+  game.invulnerableTimer = Math.max(0, game.invulnerableTimer - dt);
   game.dodgeCooldown = Math.max(0, game.dodgeCooldown - dt);
   game.playerX = THREE.MathUtils.damp(game.playerX, game.targetPlayerX, 8, dt);
   camera.position.x = game.playerX;
@@ -962,7 +998,8 @@ function updateEnemyBolts(dt, shieldActive) {
   for (let i = runtime.enemyBolts.length - 1; i >= 0; i -= 1) {
     const bolt = runtime.enemyBolts[i];
     bolt.life -= dt;
-    bolt.mesh.position.addScaledVector(bolt.velocity, dt);
+    const fieldScale = game.slowTimer > 0 ? SLOW_FIELD_MULTIPLIER : 1;
+    bolt.mesh.position.addScaledVector(bolt.velocity, dt * fieldScale);
     bolt.mesh.lookAt(camera.position);
     const dist = bolt.mesh.position.distanceTo(camera.position);
     if (dist < 3.3) {
@@ -1002,6 +1039,7 @@ function defeatEnemy(index) {
   const gain = enemy.boss ? 850 + game.wave * 200 : enemy.profile.score + game.wave * 18;
   game.score += gain;
   game.phaseKills += 1;
+  game.totalDefeated += 1;
   burst(enemy.mesh.position, enemy.boss ? 0xb535ff : 0x74ff3c, enemy.boss ? 36 : 18);
   removeEnemy(index);
 }
@@ -1019,25 +1057,48 @@ function triggerDefenseAlert() {
 }
 
 function takeDamage(amount) {
+  if (game.invulnerableTimer > 0 || game.status !== "playing") return false;
   game.health = Math.max(0, game.health - amount);
   game.damageFlash = 0.25;
+  game.invulnerableTimer = 1.15;
   document.body.classList.remove("danger-pulse");
   requestAnimationFrame(() => document.body.classList.add("danger-pulse"));
   triggerDefenseAlert();
   audio.hit("hurt");
   if (game.health <= 0) finish(false);
+  return true;
+}
+
+function currentHealCost() {
+  const spam = game.healCooldown > 0 ? game.healSpamCount : 0;
+  return Math.round(game.healCost * (1 + spam * 1.2 + spam * spam * 0.35));
 }
 
 function tryHeal() {
   if (game.status !== "playing" || game.paused) return;
-  if (game.health >= 100 || game.score < game.healCost || game.healCooldown > 0) {
+  const cost = currentHealCost();
+  if (game.health >= 100 || game.score < cost) {
     audio.hit("enemy");
     return;
   }
-  game.score -= game.healCost;
+  game.score -= cost;
   game.health = Math.min(100, game.health + 28);
-  game.healCooldown = 1.2;
+  game.healCooldown = Math.max(game.healCooldown, HEAL_COOLDOWN);
+  game.healSpamCount += 1;
   burst(camera.position.clone().add(new THREE.Vector3(0, -0.25, -2.2)), 0x74ff3c, 20);
+  audio.hit("block");
+  updateHud();
+}
+
+function trySlowField() {
+  if (game.status !== "playing" || game.paused) return;
+  if (game.slowTimer > 0 || game.slowCooldown > 0) {
+    audio.hit("enemy");
+    return;
+  }
+  game.slowTimer = SLOW_FIELD_DURATION;
+  game.slowCooldown = SLOW_FIELD_COOLDOWN;
+  burst(camera.position.clone().add(new THREE.Vector3(0, -0.18, -2.8)), 0x49ffc6, 22);
   audio.hit("block");
   updateHud();
 }
@@ -1053,6 +1114,7 @@ function sideStep(direction) {
 function removeEnemy(index) {
   const [enemy] = runtime.enemies.splice(index, 1);
   if (!enemy) return;
+  removeEnemyBoltsForOwner(enemy);
   disposeSceneObject(enemy.mesh);
 }
 
@@ -1068,6 +1130,12 @@ function removeEnemyBolt(index) {
   disposeSceneObject(bolt.mesh);
 }
 
+function removeEnemyBoltsForOwner(owner) {
+  for (let i = runtime.enemyBolts.length - 1; i >= 0; i -= 1) {
+    if (runtime.enemyBolts[i].owner === owner) removeEnemyBolt(i);
+  }
+}
+
 function updateHud() {
   const phaseTitle = game.phase === "boss" ? `Boss ${game.wave}` : `Wave ${game.wave}`;
   ui.phase.textContent = phaseTitle;
@@ -1079,6 +1147,8 @@ function updateHud() {
   ui.shieldValue.textContent = Math.ceil(game.shield);
   ui.healthBar.style.width = `${game.health}%`;
   ui.shieldBar.style.width = `${game.shield}%`;
+  ui.invulnStatus.classList.toggle("hidden", game.invulnerableTimer <= 0);
+  ui.invulnValue.textContent = `${game.invulnerableTimer.toFixed(1)}s`;
   ui.cooldownBar.style.width = `${Math.round((1 - Math.min(1, game.fireCooldown / 0.43)) * 100)}%`;
   ui.weaponLabel.textContent =
     game.fireCooldown > 0
@@ -1086,12 +1156,46 @@ function updateHud() {
       : runtime.enemies.length > 0
         ? "Rocket fist auto-lock"
         : "Rocket fist ready";
-  const canHeal = game.status === "playing" && game.health < 100 && game.score >= game.healCost && game.healCooldown <= 0;
+  const healCost = currentHealCost();
+  const canHeal = game.status === "playing" && game.health < 100 && game.score >= healCost;
   healButton.disabled = !canHeal;
-  ui.healLabel.textContent = game.health >= 100 ? "Health full" : game.healCooldown > 0 ? "Heal charging" : "Heal";
-  ui.healCost.textContent = canHeal ? `-${game.healCost}` : game.healCost.toString();
+  ui.healLabel.textContent =
+    game.health >= 100 ? "Health full" : game.healCooldown > 0 ? `Spam heal ${game.healCooldown.toFixed(1)}s` : "Heal";
+  ui.healCost.textContent = canHeal ? `-${healCost}` : healCost.toString();
+  const slowActive = game.slowTimer > 0;
+  const slowReady = game.status === "playing" && game.slowCooldown <= 0;
+  slowButton.disabled = !slowActive && !slowReady;
+  slowButton.classList.toggle("active", slowActive);
+  ui.slowLabel.textContent = slowActive ? "Time dilation" : game.slowCooldown > 0 ? "Recharging" : "Slow Field";
+  ui.slowValue.textContent = slowActive
+    ? `${game.slowTimer.toFixed(1)}s`
+    : game.slowCooldown > 0
+      ? `${game.slowCooldown.toFixed(1)}s`
+      : "Ready";
   ui.score.textContent = game.score.toLocaleString();
 }
+
+function renderGameToText() {
+  return JSON.stringify({
+    status: game.status,
+    wave: game.wave,
+    phase: game.phase,
+    health: Math.ceil(game.health),
+    score: game.score,
+    totalDefeated: game.totalDefeated,
+    healCooldown: Number(game.healCooldown.toFixed(2)),
+    healSpamCount: game.healSpamCount,
+    healCost: currentHealCost(),
+    slowTimer: Number(game.slowTimer.toFixed(2)),
+    slowCooldown: Number(game.slowCooldown.toFixed(2)),
+    invulnerableTimer: Number(game.invulnerableTimer.toFixed(2)),
+    enemies: runtime.enemies.length,
+    enemyBolts: runtime.enemyBolts.length,
+    orphanEnemyBolts: runtime.enemyBolts.filter((bolt) => !runtime.enemies.includes(bolt.owner)).length,
+  });
+}
+
+window.render_game_to_text = renderGameToText;
 
 function resize() {
   const { innerWidth, innerHeight } = window;
@@ -1167,6 +1271,10 @@ function updateGamepadInput() {
   const healPressed = buttonPressed(3);
   if (!game.paused && healPressed && !gamepadState.heal) tryHeal();
   gamepadState.heal = healPressed;
+
+  const slowPressed = buttonPressed(2);
+  if (!game.paused && slowPressed && !gamepadState.slow) trySlowField();
+  gamepadState.slow = slowPressed;
 }
 
 function togglePause() {
@@ -1394,6 +1502,10 @@ window.addEventListener("keydown", (event) => {
     event.preventDefault();
     tryHeal();
   }
+  if (event.code === "KeyR") {
+    event.preventDefault();
+    trySlowField();
+  }
   if (event.code === "KeyP") togglePause();
 });
 
@@ -1405,6 +1517,7 @@ startButton.addEventListener("click", resetGame);
 restartButton.addEventListener("click", () => window.location.reload());
 pauseButton.addEventListener("click", togglePause);
 healButton.addEventListener("click", tryHeal);
+slowButton.addEventListener("click", trySlowField);
 settingsToggle.addEventListener("click", () => settings.classList.toggle("open"));
 controlsToggle.addEventListener("click", () => {
   const open = controlsSidebar.classList.toggle("open");
