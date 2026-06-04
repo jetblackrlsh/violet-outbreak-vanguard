@@ -11,6 +11,8 @@ const settings = document.querySelector("#settings");
 const settingsToggle = document.querySelector("#settings-toggle");
 const musicVolume = document.querySelector("#music-volume");
 const sfxVolume = document.querySelector("#sfx-volume");
+const controlsSidebar = document.querySelector("#controls-sidebar");
+const controlsToggle = document.querySelector("#controls-toggle");
 const touchFire = document.querySelector("#touch-fire");
 const touchShield = document.querySelector("#touch-shield");
 const touchDodgeLeft = document.querySelector("#touch-dodge-left");
@@ -276,6 +278,7 @@ const game = {
   health: 100,
   shield: 100,
   shieldHeld: false,
+  gamepadShieldHeld: false,
   fireCooldown: 0,
   healCooldown: 0,
   healCost: 900,
@@ -294,6 +297,14 @@ const runtime = {
   projectiles: [],
   enemyBolts: [],
   particles: [],
+  defenseAlertTimer: 0,
+};
+
+const gamepadState = {
+  fire: false,
+  heal: false,
+  pause: false,
+  dodgeDirection: 0,
 };
 
 function createMaskedMaterial(texture, uv, glowColor = 0xffffff, intensity = 0.2) {
@@ -476,11 +487,17 @@ function spawnEnemy(isBoss = false) {
     baseY,
     scale,
     speed: (profile.speed || 4.4) * (isBoss ? 0.45 + (game.wave - 1) * 0.04 : 1.62 + (game.wave - 1) * 0.08),
-    attackTimer: isBoss ? 1.65 : 2.2 + Math.random() * 1.35,
+    attackTimer: initialAttackDelay(isBoss),
     strafe: Math.random() * Math.PI * 2,
     bossAttackIndex: 0,
     radius: isBoss ? Math.max(scale[0], scale[1]) * 0.48 : Math.max(scale[0], scale[1]) * 0.42,
   });
+}
+
+function initialAttackDelay(isBoss) {
+  if (isBoss) return 1.45;
+  const earlyWaveCut = Math.min(game.wave, 4) * 0.09;
+  return Math.max(0.48, 1.08 - earlyWaveCut + Math.random() * 0.48);
 }
 
 function availableEnemyProfiles(wave) {
@@ -534,7 +551,7 @@ function spawnEnemyBolt(enemy, options = {}) {
   mesh.position.copy(enemy.mesh.position).add(new THREE.Vector3(options.offsetX || 0, options.offsetY || 0.35, 0.8));
   scene.add(mesh);
   const target = camera.position.clone().add(new THREE.Vector3(options.aimOffsetX || 0, -0.2, 0));
-  const speed = (enemy.boss ? 15 + game.wave : 12 + game.wave * 0.7) * (options.speedScale || 1);
+  const speed = (enemy.boss ? 15 + game.wave : 14.2 + game.wave * 0.95) * (options.speedScale || 1);
   const velocity = target.sub(mesh.position).normalize().multiplyScalar(speed);
   runtime.enemyBolts.push({
     mesh,
@@ -579,6 +596,11 @@ function resetGame() {
   game.health = 100;
   game.shield = 100;
   game.shieldHeld = false;
+  game.gamepadShieldHeld = false;
+  gamepadState.fire = false;
+  gamepadState.heal = false;
+  gamepadState.pause = false;
+  gamepadState.dodgeDirection = 0;
   game.fireCooldown = 0;
   game.healCooldown = 0;
   game.playerX = 0;
@@ -591,6 +613,7 @@ function resetGame() {
   game.time = 0;
   game.bossSpawned = false;
   game.damageFlash = 0;
+  clearDefenseAlert();
   document.body.classList.remove("danger-pulse");
   resultScreen.classList.add("hidden");
   startScreen.classList.add("hidden");
@@ -674,6 +697,8 @@ function finish(victory) {
   game.status = victory ? "victory" : "defeat";
   audio.playResult(victory);
   clearRuntime();
+  clearDefenseAlert();
+  game.gamepadShieldHeld = false;
   ui.resultKicker.textContent = victory ? "Portal sealed" : "Vanguard down";
   ui.resultTitle.textContent = victory ? "Victory" : "Defeat";
   ui.resultCopy.textContent = victory
@@ -692,7 +717,7 @@ function update(dt) {
   camera.position.x = game.playerX;
   camera.rotation.z = THREE.MathUtils.damp(camera.rotation.z, (game.targetPlayerX - game.playerX) * -0.035, 7, dt);
 
-  const shieldActive = game.shieldHeld && game.shield > 0;
+  const shieldActive = (game.shieldHeld || game.gamepadShieldHeld) && game.shield > 0;
   if (shieldActive) {
     game.shield = Math.max(0, game.shield - 28 * dt);
   } else {
@@ -857,10 +882,14 @@ function fireBossAttack(enemy, pattern) {
 }
 
 function nextAttackDelay(enemy) {
-  const ramp = 1 + (game.wave - 1) * 0.11;
+  const ramp = enemy.boss ? 1 + (game.wave - 1) * 0.11 : enemyAggressionScale(game.wave);
   const attack = enemy.profile.attack;
-  const base = enemy.boss ? enemy.profile.attackDelay : attack === "slam" ? 2.75 : attack === "rocketBurst" ? 2.85 : attack === "diveTwin" ? 1.8 : 1.35;
+  const base = enemy.boss ? enemy.profile.attackDelay : attack === "slam" ? 2.1 : attack === "rocketBurst" ? 2.2 : attack === "diveTwin" ? 1.35 : 1.05;
   return base / ramp;
+}
+
+function enemyAggressionScale(wave) {
+  return wave <= 4 ? 1.26 + wave * 0.18 : 1.98 + (wave - 4) * 0.09;
 }
 
 function updateEnemies(dt) {
@@ -869,7 +898,7 @@ function updateEnemies(dt) {
     const { mesh } = enemy;
     updateEnemyMotion(enemy, dt);
 
-    enemy.attackTimer -= dt * (0.9 + (game.wave - 1) * 0.08);
+    enemy.attackTimer -= dt * (enemy.boss ? 1 + (game.wave - 1) * 0.08 : enemyAggressionScale(game.wave));
     if (enemy.attackTimer <= 0) {
       fireEnemyAttack(enemy);
       enemy.attackTimer = nextAttackDelay(enemy);
@@ -977,11 +1006,24 @@ function defeatEnemy(index) {
   removeEnemy(index);
 }
 
+function clearDefenseAlert() {
+  if (runtime.defenseAlertTimer) window.clearTimeout(runtime.defenseAlertTimer);
+  runtime.defenseAlertTimer = 0;
+  document.body.classList.remove("defense-alert");
+}
+
+function triggerDefenseAlert() {
+  document.body.classList.add("defense-alert");
+  if (runtime.defenseAlertTimer) window.clearTimeout(runtime.defenseAlertTimer);
+  runtime.defenseAlertTimer = window.setTimeout(clearDefenseAlert, 1400);
+}
+
 function takeDamage(amount) {
   game.health = Math.max(0, game.health - amount);
   game.damageFlash = 0.25;
   document.body.classList.remove("danger-pulse");
   requestAnimationFrame(() => document.body.classList.add("danger-pulse"));
+  triggerDefenseAlert();
   audio.hit("hurt");
   if (game.health <= 0) finish(false);
 }
@@ -1061,6 +1103,7 @@ function resize() {
 function render() {
   try {
     const dt = Math.min(clock.getDelta(), 0.05);
+    updateGamepadInput();
     update(dt);
     renderer.render(scene, camera);
   } catch (error) {
@@ -1079,6 +1122,51 @@ function setPointerFromEvent(event) {
   pointer.y = -(y / window.innerHeight) * 2 + 1;
   document.documentElement.style.setProperty("--aim-x", `${x}px`);
   document.documentElement.style.setProperty("--aim-y", `${y}px`);
+}
+
+function updateGamepadInput() {
+  if (!navigator.getGamepads) return;
+  const pad = Array.from(navigator.getGamepads()).find(Boolean);
+  if (!pad) {
+    game.gamepadShieldHeld = false;
+    return;
+  }
+
+  const buttonPressed = (index) => Boolean(pad.buttons[index]?.pressed);
+  const menuPressed = buttonPressed(9);
+  if (menuPressed && !gamepadState.pause) togglePause();
+  gamepadState.pause = menuPressed;
+
+  if (game.status !== "playing") {
+    game.gamepadShieldHeld = false;
+    return;
+  }
+
+  const rightX = Math.abs(pad.axes[2] || 0) > 0.12 ? pad.axes[2] : 0;
+  const rightY = Math.abs(pad.axes[3] || 0) > 0.12 ? pad.axes[3] : 0;
+  if (rightX || rightY) {
+    pointer.x = THREE.MathUtils.clamp(pointer.x + rightX * 0.035, -1, 1);
+    pointer.y = THREE.MathUtils.clamp(pointer.y - rightY * 0.035, -1, 1);
+    document.documentElement.style.setProperty("--aim-x", `${((pointer.x + 1) / 2) * window.innerWidth}px`);
+    document.documentElement.style.setProperty("--aim-y", `${((1 - pointer.y) / 2) * window.innerHeight}px`);
+  }
+
+  const leftX = pad.axes[0] || 0;
+  const dpadDirection = buttonPressed(14) ? -1 : buttonPressed(15) ? 1 : 0;
+  const stickDirection = Math.abs(leftX) > 0.62 ? Math.sign(leftX) : 0;
+  const dodgeDirection = dpadDirection || stickDirection;
+  if (!game.paused && dodgeDirection && dodgeDirection !== gamepadState.dodgeDirection) sideStep(dodgeDirection);
+  gamepadState.dodgeDirection = dodgeDirection;
+
+  const firePressed = buttonPressed(7) || buttonPressed(0);
+  if (!game.paused && firePressed && !gamepadState.fire) spawnPlayerProjectile();
+  gamepadState.fire = firePressed;
+
+  game.gamepadShieldHeld = !game.paused && (buttonPressed(6) || buttonPressed(4));
+
+  const healPressed = buttonPressed(3);
+  if (!game.paused && healPressed && !gamepadState.heal) tryHeal();
+  gamepadState.heal = healPressed;
 }
 
 function togglePause() {
@@ -1318,6 +1406,10 @@ restartButton.addEventListener("click", () => window.location.reload());
 pauseButton.addEventListener("click", togglePause);
 healButton.addEventListener("click", tryHeal);
 settingsToggle.addEventListener("click", () => settings.classList.toggle("open"));
+controlsToggle.addEventListener("click", () => {
+  const open = controlsSidebar.classList.toggle("open");
+  controlsToggle.setAttribute("aria-expanded", open ? "true" : "false");
+});
 touchFire.addEventListener("click", spawnPlayerProjectile);
 touchDodgeLeft.addEventListener("click", () => sideStep(-1));
 touchDodgeRight.addEventListener("click", () => sideStep(1));
