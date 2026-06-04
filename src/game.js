@@ -13,6 +13,8 @@ const musicVolume = document.querySelector("#music-volume");
 const sfxVolume = document.querySelector("#sfx-volume");
 const touchFire = document.querySelector("#touch-fire");
 const touchShield = document.querySelector("#touch-shield");
+const touchDodgeLeft = document.querySelector("#touch-dodge-left");
+const touchDodgeRight = document.querySelector("#touch-dodge-right");
 
 const ui = {
   phase: document.querySelector("#phase-label"),
@@ -143,6 +145,9 @@ const game = {
   fireCooldown: 0,
   healCooldown: 0,
   healCost: 350,
+  playerX: 0,
+  targetPlayerX: 0,
+  dodgeCooldown: 0,
   spawnTimer: 0,
   score: 0,
   time: 0,
@@ -308,7 +313,8 @@ function spawnEnemy(isBoss = false) {
 
 function spawnPlayerProjectile() {
   if (game.status !== "playing" || game.paused || game.fireCooldown > 0) return;
-  const direction = getAimDirection();
+  const target = findAutoTarget();
+  const direction = target ? directionToTarget(camera.position, target) : getAimDirection();
   const mesh = new THREE.Group();
   const core = new THREE.Mesh(
     new THREE.SphereGeometry(0.32, 18, 18),
@@ -322,9 +328,34 @@ function spawnPlayerProjectile() {
   mesh.add(core, ring);
   mesh.position.copy(camera.position).add(new THREE.Vector3(0.45, -0.25, -1.2));
   scene.add(mesh);
-  runtime.projectiles.push({ mesh, velocity: direction.multiplyScalar(68), life: 1.35, damage: 28 + game.wave * 3 });
+  runtime.projectiles.push({ mesh, velocity: direction.multiplyScalar(68), life: 1.45, damage: 28 + game.wave * 3, target });
   game.fireCooldown = Math.max(0.22, 0.43 - game.wave * 0.018);
   audio.hit("fire");
+}
+
+function findAutoTarget() {
+  let best = null;
+  let bestScore = -Infinity;
+  for (const enemy of runtime.enemies) {
+    const distance = camera.position.distanceTo(enemy.mesh.position);
+    const closeness = 110 - distance;
+    const centerBias = 20 - Math.abs(enemy.mesh.position.x - camera.position.x);
+    const threat = enemy.mesh.position.z + 60;
+    const score = closeness * 0.55 + centerBias * 0.35 + threat * 0.45 + (enemy.boss ? 75 : 0);
+    if (score > bestScore) {
+      bestScore = score;
+      best = enemy;
+    }
+  }
+  return best;
+}
+
+function directionToTarget(origin, enemy) {
+  return enemy.mesh.position
+    .clone()
+    .add(new THREE.Vector3(0, enemy.boss ? 0.3 : 0.15, 0))
+    .sub(origin)
+    .normalize();
 }
 
 function spawnEnemyBolt(enemy) {
@@ -379,6 +410,11 @@ function resetGame() {
   game.shieldHeld = false;
   game.fireCooldown = 0;
   game.healCooldown = 0;
+  game.playerX = 0;
+  game.targetPlayerX = 0;
+  game.dodgeCooldown = 0;
+  camera.position.x = 0;
+  camera.rotation.z = 0;
   game.spawnTimer = 0.75;
   game.score = 0;
   game.time = 0;
@@ -473,6 +509,10 @@ function update(dt) {
   game.time += dt;
   game.fireCooldown = Math.max(0, game.fireCooldown - dt);
   game.healCooldown = Math.max(0, game.healCooldown - dt);
+  game.dodgeCooldown = Math.max(0, game.dodgeCooldown - dt);
+  game.playerX = THREE.MathUtils.damp(game.playerX, game.targetPlayerX, 8, dt);
+  camera.position.x = game.playerX;
+  camera.rotation.z = THREE.MathUtils.damp(camera.rotation.z, (game.targetPlayerX - game.playerX) * -0.035, 7, dt);
 
   const shieldActive = game.shieldHeld && game.shield > 0;
   if (shieldActive) {
@@ -545,6 +585,13 @@ function updateProjectiles(dt) {
   for (let i = runtime.projectiles.length - 1; i >= 0; i -= 1) {
     const projectile = runtime.projectiles[i];
     projectile.life -= dt;
+    if (projectile.target && runtime.enemies.includes(projectile.target)) {
+      const speed = projectile.velocity.length();
+      const desired = directionToTarget(projectile.mesh.position, projectile.target).multiplyScalar(speed);
+      projectile.velocity.lerp(desired, Math.min(1, dt * 8));
+    } else {
+      projectile.target = findAutoTarget();
+    }
     projectile.mesh.position.addScaledVector(projectile.velocity, dt);
     projectile.mesh.rotation.z += dt * 14;
 
@@ -641,6 +688,14 @@ function tryHeal() {
   updateHud();
 }
 
+function sideStep(direction) {
+  if (game.status !== "playing" || game.paused || game.dodgeCooldown > 0) return;
+  game.targetPlayerX = THREE.MathUtils.clamp(game.targetPlayerX + direction * 4.25, -8.5, 8.5);
+  game.dodgeCooldown = 0.24;
+  burst(camera.position.clone().add(new THREE.Vector3(direction * 0.9, -0.45, -2.4)), 0x49ffc6, 8);
+  audio.hit("block");
+}
+
 function removeEnemy(index) {
   const [enemy] = runtime.enemies.splice(index, 1);
   disposeSceneObject(enemy.mesh);
@@ -668,7 +723,12 @@ function updateHud() {
   ui.healthBar.style.width = `${game.health}%`;
   ui.shieldBar.style.width = `${game.shield}%`;
   ui.cooldownBar.style.width = `${Math.round((1 - Math.min(1, game.fireCooldown / 0.43)) * 100)}%`;
-  ui.weaponLabel.textContent = game.fireCooldown <= 0 ? "Rocket fist ready" : "Rocket fist charging";
+  ui.weaponLabel.textContent =
+    game.fireCooldown > 0
+      ? "Rocket fist charging"
+      : runtime.enemies.length > 0
+        ? "Rocket fist auto-lock"
+        : "Rocket fist ready";
   const canHeal = game.status === "playing" && game.health < 100 && game.score >= game.healCost && game.healCooldown <= 0;
   healButton.disabled = !canHeal;
   ui.healLabel.textContent = game.health >= 100 ? "Health full" : game.healCooldown > 0 ? "Heal charging" : "Heal";
@@ -879,10 +939,18 @@ window.addEventListener("contextmenu", (event) => event.preventDefault());
 
 window.addEventListener("touchstart", (event) => {
   setPointerFromEvent(event);
-  if (game.status === "playing") spawnPlayerProjectile();
+  if (game.status === "playing" && !event.target.closest("button, input")) spawnPlayerProjectile();
 }, { passive: true });
 
 window.addEventListener("keydown", (event) => {
+  if (event.code === "KeyA" || event.code === "ArrowLeft") {
+    event.preventDefault();
+    sideStep(-1);
+  }
+  if (event.code === "KeyD" || event.code === "ArrowRight") {
+    event.preventDefault();
+    sideStep(1);
+  }
   if (event.code === "Space") {
     event.preventDefault();
     spawnPlayerProjectile();
@@ -908,6 +976,8 @@ pauseButton.addEventListener("click", togglePause);
 healButton.addEventListener("click", tryHeal);
 settingsToggle.addEventListener("click", () => settings.classList.toggle("open"));
 touchFire.addEventListener("click", spawnPlayerProjectile);
+touchDodgeLeft.addEventListener("click", () => sideStep(-1));
+touchDodgeRight.addEventListener("click", () => sideStep(1));
 touchShield.addEventListener("pointerdown", () => {
   game.shieldHeld = true;
 });

@@ -7,6 +7,7 @@ Open `index.html` directly or serve the repository root with any static web serv
 ## Controls
 
 - Aim: mouse or touch
+- Dodge: A/D, arrow keys, or the touch Left/Right buttons
 - Fire rocket fist: left click, Space, or the touch Fire button
 - Green holo shield: right mouse, Q, or the touch Shield button
 - Heal: E or the Heal button, spending score for health
