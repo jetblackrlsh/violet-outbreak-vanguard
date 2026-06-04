@@ -475,7 +475,7 @@ function spawnEnemy(isBoss = false) {
     boss: isBoss,
     baseY,
     scale,
-    speed: (profile.speed || 4.4) * (isBoss ? 0.45 + (game.wave - 1) * 0.04 : 1.34 + (game.wave - 1) * 0.07),
+    speed: (profile.speed || 4.4) * (isBoss ? 0.45 + (game.wave - 1) * 0.04 : 1.62 + (game.wave - 1) * 0.08),
     attackTimer: isBoss ? 1.65 : 2.2 + Math.random() * 1.35,
     strafe: Math.random() * Math.PI * 2,
     bossAttackIndex: 0,
